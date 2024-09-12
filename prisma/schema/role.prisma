@@ -1,18 +1,22 @@
 model Role {
-  id     String   @id @default(auto()) @map("_id") @db.ObjectId
-  role   String?  @unique
-  active Boolean? @default(true)
-
-  permissions Permission[]
-
-  users   User[]   @relation(fields: [userIds], references: [id])
-  userIds String[] @db.ObjectId
+  id            String             @id @default(auto()) @map("_id") @db.ObjectId
+  role          String?            @unique
+  active        Boolean?           @default(true)
+  rolePermissions RolePermission[] @relation("RolePermissions")
+  users         User[]             @relation(fields: [userIds], references: [id])
+  userIds       String[]           @db.ObjectId
 }
 
 model Permission {
-  id   String @id @default(auto()) @map("_id") @db.ObjectId
-  name String @unique
+  id            String             @id @default(auto()) @map("_id") @db.ObjectId
+  name          String             @unique
+  rolePermissions RolePermission[] @relation("RolePermissions")
+}
 
-  Role   Role?   @relation(fields: [roleId], references: [id])
-  roleId String? @db.ObjectId
+model RolePermission {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  roleId        String   @db.ObjectId
+  permissionId  String   @db.ObjectId
+  role          Role     @relation("RolePermissions", fields: [roleId], references: [id])
+  permission    Permission @relation("RolePermissions", fields: [permissionId], references: [id])
 }
