@@ -12,12 +12,12 @@ export class RolesService {
   ) {}
 
   async create(createRoleDto: CreateRoleDto) {
-    const data = await this.prisma.role.create({
-      data: {
-        role: 'super',
+    // const data = await this.prisma.role.create({
+    //   data: {
+    //     // role: 'super',
         
-      },
-    });
+    //   },
+    // });
     return 'This action adds a new role';
   }
 
