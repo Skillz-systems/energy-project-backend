@@ -28,11 +28,11 @@ import { ActionEnum, SubjectEnum } from '@prisma/client';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // @UseGuards(JwtAuthGuard, RolesGuard)
-  // @Roles({
-  //   roles: ['admin'],
-  //   permissions: [`${ActionEnum.manage}:${SubjectEnum.User}`],
-  // })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles({
+    roles: ['admin'],
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.User}`],
+  })
   @Get()
   @ApiBearerAuth('access_token')
   @ApiOkResponse({
