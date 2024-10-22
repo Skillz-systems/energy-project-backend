@@ -1,20 +1,21 @@
-#Creates a layer from node:18 image.
-FROM node:19.3.0
-
-#Sets the working directory for any RUN, CMD, ENTRYPOINT, COPY, and ADD commands
-WORKDIR /usr/src/app
-
-#Copy new files or directories into the filesystem of the container
-COPY package.json /usr/src/app
-
-
-#Execute commands in a new layer on top of the current image and commit the results
+# Step 1: Build the NestJS application
+FROM node:19.3.0 AS build
+WORKDIR /app
+COPY package*.json ./
 RUN npm install
-RUN npm install glob rimraf
+COPY . .
+RUN npx prisma generate
+RUN npm run build
 
-##Copy new files or directories into the filesystem of the container
-COPY . /usr/src/app
+# Step 2: Create a lightweight image for production
+FROM node:19.3.0
+WORKDIR /app
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./package.json
 
+# Expose the port your app runs on
 EXPOSE 3000
 
-CMD ["npm", "run", "start:prod"]
+# Start the application
+CMD ["node", "dist/src/main"]
