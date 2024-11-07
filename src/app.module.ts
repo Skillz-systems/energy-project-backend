@@ -10,6 +10,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { EmailModule } from './mailer/email.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { ProductsModule } from './products/products.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { InventoryModule } from './inventory/inventory.module';
     UsersModule,
     PermissionsModule,
     InventoryModule,
+    ProductsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
