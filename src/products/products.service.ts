@@ -88,7 +88,7 @@ export class ProductsService {
     });
 
     if (!product) {
-      throw new NotFoundException(MESSAGES.PRODUCT_NOT_FOUND);  // Assuming you have defined this constant in a messages file
+      throw new NotFoundException(MESSAGES.PRODUCT_NOT_FOUND);
     }
 
     return product;

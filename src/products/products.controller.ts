@@ -1,7 +1,7 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, ParseFilePipeBuilder, UploadedFile, UseInterceptors, Get, Query, Param } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiExtraModels, ApiHeader, ApiOkResponse, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiExtraModels, ApiHeader, ApiOkResponse, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RolesAndPermissions } from 'src/auth/decorators/roles.decorator';
 import { ActionEnum, Product, SubjectEnum } from '@prisma/client';
 import { RolesAndPermissionsGuard } from 'src/auth/guards/roles.guard';
@@ -79,6 +79,20 @@ export class ProductsController {
     return this.productsService.getAllProducts(getProductsDto);
   }
 
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Products}`],
+  })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
   @ApiParam({
     name: 'id',
     description: 'ID of the product to fetch',
@@ -92,6 +106,11 @@ export class ProductsController {
     description: 'Product not found.',
   })
   @Get(':id')
+  @ApiOperation({
+    summary: 'Fetch product details',
+    description:
+      'This endpoint allows a permitted user fetch a product details.',
+  })
   async getProduct(@Param('id') id: string): Promise<Product> {
     const product = await this.productsService.findOne(id);
    
