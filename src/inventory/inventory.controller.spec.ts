@@ -24,6 +24,7 @@ describe('InventoryController', () => {
     getInventories: jest.fn(),
     fetchInventoryBatchDetails: jest.fn(),
     createInventoryCategory: jest.fn(),
+    getInventoryTabs: jest.fn(),
   };
 
   const mockFile = {
@@ -131,12 +132,12 @@ describe('InventoryController', () => {
 
     it('should throw NotFoundException if inventory Batch details is not found', async () => {
       mockInventoryService.fetchInventoryBatchDetails.mockRejectedValueOnce(
-        new NotFoundException(MESSAGES.USER_NOT_FOUND),
+        new NotFoundException(MESSAGES.BATCH_NOT_FOUND),
       );
 
       await expect(
         controller.getInventoryBatchDetails('nonexistent-id'),
-      ).rejects.toThrow(new NotFoundException(MESSAGES.USER_NOT_FOUND));
+      ).rejects.toThrow(new NotFoundException(MESSAGES.BATCH_NOT_FOUND));
       expect(
         mockInventoryService.fetchInventoryBatchDetails,
       ).toHaveBeenCalledWith('nonexistent-id');
@@ -189,6 +190,47 @@ describe('InventoryController', () => {
 
       expect(mockInventoryService.createInventoryCategory).toHaveBeenCalledWith(
         createCategoryDto.categories,
+      );
+    });
+  });
+
+  describe('Fetch Inventory Tabs', () => {
+    it('should return an inventory Batch Tabs if ID valid', async () => {
+      mockInventoryService.getInventoryTabs.mockResolvedValueOnce([
+        {
+          name: 'Details',
+          url: '/inventory/batch/672a7ded6e6ef96f18f3646c',
+        },
+        {
+          name: 'History',
+          url: '/inventory/672a7ded6e6ef96f18f3646c/history',
+        },
+        {
+          name: 'Stats',
+          url: '/inventory/672a7ded6e6ef96f18f3646c/stats',
+        },
+      ]);
+
+      const result = await controller.getInventoryTabs(
+        mockInventoryBatchResponse.id,
+      );
+
+      expect(result.length).toBeGreaterThan(1);
+      expect(
+        mockInventoryService.getInventoryTabs,
+      ).toHaveBeenCalledWith(mockInventoryBatchResponse.id);
+    });
+
+    it('should throw NotFoundException if inventory Batch ID is not found', async () => {
+      mockInventoryService.getInventoryTabs.mockRejectedValueOnce(
+        new NotFoundException(MESSAGES.BATCH_NOT_FOUND),
+      );
+
+      await expect(
+        controller.getInventoryTabs('nonexistent-id'),
+      ).rejects.toThrow(new NotFoundException(MESSAGES.BATCH_NOT_FOUND));
+      expect(mockInventoryService.getInventoryTabs).toHaveBeenCalledWith(
+        'nonexistent-id',
       );
     });
   });

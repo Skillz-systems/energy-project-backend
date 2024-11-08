@@ -220,4 +220,33 @@ export class InventoryController {
   async getInventoryStats() {
     return await this.inventoryService.getInventoryStats();
   }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Inventory}`],
+  })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'InventoryBatch id to fetch tabs',
+  })
+  @ApiOkResponse({
+    description: 'Fetch Inventory Tabs',
+    isArray: true,
+  })
+  @ApiBadRequestResponse({})
+  @HttpCode(HttpStatus.OK)
+  @Get(':id/tabs')
+  async getInventoryTabs(@Param('id') inventoryBatchId: string) {
+    return this.inventoryService.getInventoryTabs(inventoryBatchId);
+  }
 }

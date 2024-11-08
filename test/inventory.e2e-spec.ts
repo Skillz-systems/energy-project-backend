@@ -202,7 +202,6 @@ describe('InventoryController (e2e)', () => {
       prisma.inventoryBatch.findUnique.mockResolvedValue(
         mockInventoryBatchResponse,
       );
-      prisma.inventory.count.mockResolvedValueOnce(1);
 
       const response = await request(app.getHttpServer())
         .get('/inventory/batch/672a7e32493902cd46999f69')
@@ -273,6 +272,32 @@ describe('InventoryController (e2e)', () => {
         .expect(HttpStatus.BAD_REQUEST);
 
       expect(response.body.message).toBe('Invalid Parent Id');
+    });
+  });
+
+  describe('Fetch Inventory Tabs', () => {
+    it('/Inventory Batch Tabs (GET)', async () => {
+      prisma.inventoryBatch.findUnique.mockResolvedValue(
+        mockInventoryBatchResponse,
+      );
+
+      const response = await request(app.getHttpServer())
+        .get('/inventory/672a7e32493902cd46999f69/tabs')
+        .expect(200);
+
+      expect(response.status).toBe(HttpStatus.OK);
+      expect(response.body.length).toBeGreaterThan(1);
+    });
+
+    it('should throw NotFoundException if Inventory Batch ID is not found', async () => {
+      prisma.inventoryBatch.findUnique.mockResolvedValue(null);
+
+      const response = await request(app.getHttpServer())
+        .get('/inventory/672a7e32493902cd46999f69/tabs')
+        .expect(404);
+
+      expect(response.status).toBe(HttpStatus.NOT_FOUND);
+      expect(response.body.message).toContain(MESSAGES.BATCH_NOT_FOUND);
     });
   });
 });

@@ -234,4 +234,27 @@ describe('InventoryService', () => {
       );
     });
   });
+
+  describe('Fetch Inventory Tabs', () => {
+    it('should return an Inventory Batch Tabs if ID valid', async () => {
+      mockPrismaService.inventoryBatch.findUnique.mockResolvedValue(
+        mockInventoryBatchResponse,
+      );
+
+      const result = await service.getInventoryTabs(
+        mockInventoryBatchResponse.id,
+      );
+
+      expect(result.length).toBeGreaterThan(1);
+      expect(mockPrismaService.inventoryBatch.findUnique).toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException if Inventory Batch ID is not found', async () => {
+      mockPrismaService.inventoryBatch.findUnique.mockResolvedValue(null);
+
+      await expect(service.getInventoryTabs('nonexistent-id')).rejects.toThrow(
+        new NotFoundException(MESSAGES.BATCH_NOT_FOUND),
+      );
+    });
+  });
 });

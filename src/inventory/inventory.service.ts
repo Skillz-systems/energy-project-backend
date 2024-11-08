@@ -313,6 +313,36 @@ export class InventoryService {
     };
   }
 
+  async getInventoryTabs(inventoryBatchId: string) {
+    const inventoryBatch = await this.prisma.inventoryBatch.findUnique({
+      where: { id: inventoryBatchId },
+      include: {
+        inventory: true,
+      },
+    });
+
+    if (!inventoryBatch) {
+      throw new NotFoundException(MESSAGES.BATCH_NOT_FOUND);
+    }
+
+    const tabs = [
+      {
+        name: 'Details',
+        url: `/inventory/batch/${inventoryBatchId}`,
+      },
+      {
+        name: 'History',
+        url: `/inventory/${inventoryBatchId}/history`,
+      },
+      {
+        name: 'Stats',
+        url: `/inventory/${inventoryBatchId}/stats`,
+      },
+    ];
+
+    return tabs;
+  }
+
   private generateBatchNumber(): number {
     return Math.floor(10000000 + Math.random() * 90000000);
   }
