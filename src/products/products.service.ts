@@ -1,26 +1,41 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
+
 
 @Injectable()
 export class ProductsService {
-  create(createProductDto: CreateProductDto) {
-    return 'This action adds a new product';
+  constructor(
+    private readonly cloudinary: CloudinaryService,
+    private readonly prisma: PrismaService,
+  ) {} 
+
+
+  async uploadInventoryImage(file: Express.Multer.File) {
+
+    return await this.cloudinary.uploadFile(file).catch((e) => {
+      throw e;
+    });
   }
 
-  findAll() {
-    return `This action returns all products`;
-  }
+  async create(createProductDto: CreateProductDto, file: Express.Multer.File,) {
+    const { name, description, price, currency, paymentModes, productCategoryId, inventoryBatchId } = createProductDto;
 
-  findOne(id: number) {
-    return `This action returns a #${id} product`;
-  }
 
-  update(id: number, updateProductDto: UpdateProductDto) {
-    return `This action updates a #${id} product`;
-  }
+    const image = (await this.uploadInventoryImage(file)).secure_url;
 
-  remove(id: number) {
-    return `This action removes a #${id} product`;
+    return await this.prisma.product.create({
+      data: {
+        name,
+        description,
+        image,
+        price,
+        currency,
+        paymentModes,
+        productCategoryId,
+        inventoryBatchId,
+      },
+    });
   }
 }

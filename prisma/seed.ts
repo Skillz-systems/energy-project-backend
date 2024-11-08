@@ -46,6 +46,10 @@ async function main() {
   // console.log({ adminRole, customerRole });
 
   // Seed Category
+
+  await prisma.category.deleteMany();
+
+  
   await prisma.category.createMany({
     data: Array.from({ length: 10 }).map(() => ({
       name: faker.commerce.department(),
