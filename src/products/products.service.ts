@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { GetProductsDto } from './dto/get-products.dto';
+import { MESSAGES } from 'src/constants';
 
 
 @Injectable()
@@ -76,5 +77,20 @@ export class ProductsService {
         limit,
       },
     };
+  }
+
+  async findOne(id: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id },
+      include: {
+        InventoryBatch: true,
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException(MESSAGES.PRODUCT_NOT_FOUND);  // Assuming you have defined this constant in a messages file
+    }
+
+    return product;
   }
 }

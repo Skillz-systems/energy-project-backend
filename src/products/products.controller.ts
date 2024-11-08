@@ -1,9 +1,9 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, ParseFilePipeBuilder, UploadedFile, UseInterceptors, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, ParseFilePipeBuilder, UploadedFile, UseInterceptors, Get, Query, Param } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiExtraModels, ApiHeader, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiExtraModels, ApiHeader, ApiOkResponse, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RolesAndPermissions } from 'src/auth/decorators/roles.decorator';
-import { ActionEnum, SubjectEnum } from '@prisma/client';
+import { ActionEnum, Product, SubjectEnum } from '@prisma/client';
 import { RolesAndPermissionsGuard } from 'src/auth/guards/roles.guard';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -77,5 +77,24 @@ export class ProductsController {
   @HttpCode(HttpStatus.OK)
   async getAllProducts(@Query() getProductsDto: GetProductsDto) {
     return this.productsService.getAllProducts(getProductsDto);
+  }
+
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the product to fetch',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'The details of the product.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Product not found.',
+  })
+  @Get(':id')
+  async getProduct(@Param('id') id: string): Promise<Product> {
+    const product = await this.productsService.findOne(id);
+   
+    return product;
   }
 }
