@@ -8,7 +8,7 @@ model Category {
 
     type CategoryTypes
 
-    products ProductCategory[]
+    products Product[]
 
     inventory              Inventory[] @relation("InventoryToCategory")
     subCategoriesInventory Inventory[] @relation("InventoryToSubCategory")

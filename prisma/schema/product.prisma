@@ -7,8 +7,8 @@ model Product {
     currency     String? @default("NGN")
     paymentModes String?
 
-    productCategoryId String          @unique @db.ObjectId
-    productCategory   ProductCategory @relation(fields: [productCategoryId], references: [id], onDelete: Cascade)
+    categoryId String   @unique @db.ObjectId
+    category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
     customers CustomerProducts[]
 
