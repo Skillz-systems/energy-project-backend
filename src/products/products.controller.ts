@@ -1,7 +1,7 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, ParseFilePipeBuilder, UploadedFile, UseInterceptors, Get, Query } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiHeader, ApiTags } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiExtraModels, ApiHeader, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { RolesAndPermissions } from 'src/auth/decorators/roles.decorator';
 import { ActionEnum, SubjectEnum } from '@prisma/client';
 import { RolesAndPermissionsGuard } from 'src/auth/guards/roles.guard';
@@ -53,7 +53,28 @@ export class ProductsController {
     );
   }
 
+  // @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  // @RolesAndPermissions({
+  //   permissions: [`${ActionEnum.manage}:${SubjectEnum.Products}`],
+  // })
+  // @ApiBearerAuth('access_token')
+  // @ApiHeader({
+  //   name: 'Authorization',
+  //   description: 'JWT token used for authentication',
+  //   required: true,
+  //   schema: {
+  //     type: 'string',
+  //     example: 'Bearer <token>',
+  //   },
+  // })
   @Get()
+  @ApiOkResponse({
+    description: 'Fetch all products with pagination',
+    isArray: true,
+  })
+  @ApiBadRequestResponse({})
+  @ApiExtraModels(GetProductsDto)
+  @HttpCode(HttpStatus.OK)
   async getAllProducts(@Query() getProductsDto: GetProductsDto) {
     return this.productsService.getAllProducts(getProductsDto);
   }

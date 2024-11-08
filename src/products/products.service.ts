@@ -58,11 +58,11 @@ export class ProductsService {
       skip,
       take: limit,
       orderBy: {
-        createdAt: 'desc', // Order by creation date by default, you can make it dynamic if needed
+        createdAt: 'desc', 
       },
     });
 
-    // Count total products for pagination meta
+
     const total = await this.prisma.product.count({
       where: whereConditions,
     });
