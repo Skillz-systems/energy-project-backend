@@ -31,8 +31,8 @@ export class CreateProductDto {
   paymentModes?: string;
 
   @IsString()
-  @ApiPropertyOptional({ description: 'productCategoryId of the product' })
-  productCategoryId: string;
+  @ApiPropertyOptional({ description: 'Product category Id of the product' })
+  categoryId: string;
 
   @IsString()
   @ApiPropertyOptional({ description: 'inventoryBatchId of the product' })

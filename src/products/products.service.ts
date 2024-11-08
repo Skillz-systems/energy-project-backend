@@ -22,7 +22,7 @@ export class ProductsService {
   }
 
   async create(createProductDto: CreateProductDto, file: Express.Multer.File,) {
-    const { name, description, price, currency, paymentModes, productCategoryId, inventoryBatchId } = createProductDto;
+    const { name, description, price, currency, paymentModes, categoryId, inventoryBatchId } = createProductDto;
 
 
     const image = (await this.uploadInventoryImage(file)).secure_url;
@@ -35,7 +35,7 @@ export class ProductsService {
         price,
         currency,
         paymentModes,
-        productCategoryId,
+        categoryId,
         inventoryBatchId,
       },
     });
@@ -61,6 +61,10 @@ export class ProductsService {
       orderBy: {
         createdAt: 'desc', 
       },
+      include: {
+        InventoryBatch: true,
+        category: true
+      },
     });
 
 
@@ -84,6 +88,7 @@ export class ProductsService {
       where: { id },
       include: {
         InventoryBatch: true,
+        category: true
       },
     });
 

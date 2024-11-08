@@ -53,20 +53,20 @@ export class ProductsController {
     );
   }
 
-  // @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
-  // @RolesAndPermissions({
-  //   permissions: [`${ActionEnum.manage}:${SubjectEnum.Products}`],
-  // })
-  // @ApiBearerAuth('access_token')
-  // @ApiHeader({
-  //   name: 'Authorization',
-  //   description: 'JWT token used for authentication',
-  //   required: true,
-  //   schema: {
-  //     type: 'string',
-  //     example: 'Bearer <token>',
-  //   },
-  // })
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Products}`],
+  })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
   @Get()
   @ApiOkResponse({
     description: 'Fetch all products with pagination',
