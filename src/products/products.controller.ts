@@ -1,13 +1,14 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, ParseFilePipeBuilder, UploadedFile, UseInterceptors, Get, Query, Param } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiExtraModels, ApiHeader, ApiOkResponse, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiCreatedResponse, ApiExtraModels, ApiHeader, ApiOkResponse, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RolesAndPermissions } from 'src/auth/decorators/roles.decorator';
 import { ActionEnum, Product, SubjectEnum } from '@prisma/client';
 import { RolesAndPermissionsGuard } from 'src/auth/guards/roles.guard';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { GetProductsDto } from './dto/get-products.dto';
+import { CreateProductCategoryDto } from './dto/create-category.dto';
 
 @ApiTags('Products')
 @Controller('products')
@@ -115,5 +116,32 @@ export class ProductsController {
     const product = await this.productsService.findOne(id);
    
     return product;
+  }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Products}`],
+  })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @Post('create-category')
+  @ApiOperation({
+    summary: 'Create product category',
+    description:
+      'This endpoint allows a permitted user to create a product category.',
+  })
+  @HttpCode(HttpStatus.CREATED)
+  @ApiCreatedResponse({ description: 'Product category created successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid product category creation data' })
+  async createCategory(@Body() createCategoryDto: CreateProductCategoryDto) {
+    return this.productsService.createProductCategory(createCategoryDto);
   }
 }

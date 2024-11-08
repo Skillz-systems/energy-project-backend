@@ -4,6 +4,7 @@ import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { GetProductsDto } from './dto/get-products.dto';
 import { MESSAGES } from 'src/constants';
+import { CreateProductCategoryDto } from './dto/create-category.dto';
 
 
 @Injectable()
@@ -97,5 +98,28 @@ export class ProductsService {
     }
 
     return product;
+  }
+
+  async createProductCategory(createProductCategoryDto: CreateProductCategoryDto) {
+    const { name, parentId } = createProductCategoryDto;
+
+    // Check if the parent category exists if parentId is provided
+    if (parentId) {
+      const parentCategory = await this.prisma.category.findUnique({
+        where: { id: parentId },
+      });
+
+      if (!parentCategory) {
+        throw new NotFoundException('Parent category not found');
+      }
+    }
+
+    return this.prisma.category.create({
+      data: {
+        name,
+        parentId,
+        type: 'PRODUCT',
+      },
+    });
   }
 }
