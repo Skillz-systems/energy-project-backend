@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, ParseFilePipeBuilder, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, ParseFilePipeBuilder, UploadedFile, UseInterceptors, Get, Query } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiHeader, ApiTags } from '@nestjs/swagger';
@@ -7,6 +7,7 @@ import { ActionEnum, SubjectEnum } from '@prisma/client';
 import { RolesAndPermissionsGuard } from 'src/auth/guards/roles.guard';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { GetProductsDto } from './dto/get-products.dto';
 
 @ApiTags('Products')
 @Controller('products')
@@ -50,5 +51,10 @@ export class ProductsController {
       CreateProductDto,
       file,
     );
+  }
+
+  @Get()
+  async getAllProducts(@Query() getProductsDto: GetProductsDto) {
+    return this.productsService.getAllProducts(getProductsDto);
   }
 }
