@@ -122,4 +122,53 @@ export class ProductsService {
       },
     });
   }
+
+  async getAllCategories() {
+    return await this.prisma.category.findMany({
+      where: {
+        type: 'PRODUCT',
+      },
+      include: {
+        parent: true,
+        children: true,
+      },
+    });
+  }
+
+  async getProductTabs(productId: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: {
+        _count: {
+          select: { customers: true },
+        },
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException(MESSAGES.PRODUCT_NOT_FOUND);
+    }
+
+    const tabs = [
+      {
+        name: 'Product Details',
+        url: `/product/${productId}/details`,
+      },
+      {
+        name: 'Stats',
+        url: `/product/${productId}/stats`,
+      },
+      {
+        name: 'Inventory Details',
+        url: `/product/${productId}/inventory`,
+      },
+      {
+        name: 'Customers',
+        url: `/product/${productId}/customers`,
+        count: product._count.customers
+      },
+    ];
+
+    return tabs;
+  }
 }

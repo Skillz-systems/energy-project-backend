@@ -144,4 +144,57 @@ export class ProductsController {
   async createCategory(@Body() createCategoryDto: CreateProductCategoryDto) {
     return this.productsService.createProductCategory(createCategoryDto);
   }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Products}`],
+  })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @Get('/categories/all')
+  @ApiOperation({
+    summary: 'Fetch all product categories',
+    description:
+      'This endpoint allows a permitted user fetch  all product categories.',
+  })
+  async getAllCategories() {
+    return this.productsService.getAllCategories();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Products}`],
+  })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Product id to fetch tabs',
+  })
+  @ApiOkResponse({
+    description: 'Fetch Product Tabs',
+    isArray: true,
+  })
+  @ApiBadRequestResponse({})
+  @HttpCode(HttpStatus.OK)
+  @Get(':id/tabs')
+  async getInventoryTabs(@Param('id') productId: string) {
+    return this.productsService.getProductTabs(productId);
+  }
 }
