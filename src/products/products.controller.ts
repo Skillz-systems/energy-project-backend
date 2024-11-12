@@ -197,4 +197,34 @@ export class ProductsController {
   async getInventoryTabs(@Param('id') productId: string) {
     return this.productsService.getProductTabs(productId);
   }
+
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Products}`],
+  })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Product id to fetch product inventory',
+  })
+  @ApiOkResponse({
+    description: 'Fetch Product Inventory',
+    isArray: true,
+  })
+  @ApiBadRequestResponse({})
+  @HttpCode(HttpStatus.OK)
+  @Get(':id/inventory')
+  async getProductInventory(@Param('id') productId: string) {
+    return this.productsService.getProductInventory(productId);
+  }
 }

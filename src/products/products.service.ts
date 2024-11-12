@@ -6,29 +6,34 @@ import { GetProductsDto } from './dto/get-products.dto';
 import { MESSAGES } from 'src/constants';
 import { CreateProductCategoryDto } from './dto/create-category.dto';
 
-
 @Injectable()
 export class ProductsService {
   constructor(
     private readonly cloudinary: CloudinaryService,
     private readonly prisma: PrismaService,
-  ) {} 
-
+  ) {}
 
   async uploadInventoryImage(file: Express.Multer.File) {
-
     return await this.cloudinary.uploadFile(file).catch((e) => {
       throw e;
     });
   }
 
-  async create(createProductDto: CreateProductDto, file: Express.Multer.File,) {
-    const { name, description, price, currency, paymentModes, categoryId, inventoryBatchIds } = createProductDto;
+  async create(createProductDto: CreateProductDto, file: Express.Multer.File) {
+    const { name, description, price, currency, paymentModes, categoryId } =
+      createProductDto;
 
+    const inventoryBatchIds: string | string[] =
+      createProductDto.inventoryBatchIds;
+
+    // Ensure inventoryBatchIds is an array
+    const batchIds = Array.isArray(inventoryBatchIds)
+      ? inventoryBatchIds
+      : inventoryBatchIds.split(',').map((id) => id.trim());
 
     const image = (await this.uploadInventoryImage(file)).secure_url;
 
-    return await this.prisma.product.create({
+    const product = await this.prisma.product.create({
       data: {
         name,
         description,
@@ -37,17 +42,30 @@ export class ProductsService {
         currency,
         paymentModes,
         categoryId,
-        inventoryBatches: inventoryBatchIds?.length
-          ? {
-              connect: inventoryBatchIds.map((id) => ({ id })), // Connect multiple inventory batches
-            }
-          : undefined,
       },
     });
+
+    if (inventoryBatchIds?.length) {
+      // Create many-to-many links in the ProductInventoryBatch table
+      await this.prisma.productInventoryBatch.createMany({
+        data: batchIds.map((inventoryBatchId) => ({
+          productId: product.id,
+          inventoryBatchId,
+        })),
+      });
+    }
+
+    return product;
   }
 
   async getAllProducts(getProductsDto: GetProductsDto) {
-    const { page = 1, limit = 10, categoryId, createdAt, updatedAt } = getProductsDto;
+    const {
+      page = 1,
+      limit = 10,
+      categoryId,
+      createdAt,
+      updatedAt,
+    } = getProductsDto;
 
     const whereConditions: any = {};
 
@@ -64,14 +82,17 @@ export class ProductsService {
       skip,
       take: limit,
       orderBy: {
-        createdAt: 'desc', 
+        createdAt: 'desc',
       },
       include: {
-        InventoryBatch: true,
-        category: true
+        // inventoryBatches: {
+        //   include: {
+        //     inventoryBatch: true,
+        //   },
+        // },
+        category: true,
       },
     });
-
 
     const total = await this.prisma.product.count({
       where: whereConditions,
@@ -92,8 +113,7 @@ export class ProductsService {
     const product = await this.prisma.product.findUnique({
       where: { id },
       include: {
-        InventoryBatch: true,
-        category: true
+        category: true,
       },
     });
 
@@ -104,7 +124,9 @@ export class ProductsService {
     return product;
   }
 
-  async createProductCategory(createProductCategoryDto: CreateProductCategoryDto) {
+  async createProductCategory(
+    createProductCategoryDto: CreateProductCategoryDto,
+  ) {
     const { name, parentId } = createProductCategoryDto;
 
     // Check if the parent category exists if parentId is provided
@@ -169,23 +191,27 @@ export class ProductsService {
       {
         name: 'Customers',
         url: `/product/${productId}/customers`,
-        count: product._count.customers
+        count: product._count.customers,
       },
     ];
 
     return tabs;
   }
 
-  async getProductInventory(inventoryBatchId: string) {
-    const inventoryBatch = await this.prisma.inventoryBatch.findUnique({
-      where: { id: inventoryBatchId },
+  async getProductInventory(productId: string) {
+    const inventoryBatch = await this.prisma.product.findUnique({
+      where: { id: productId },
       include: {
-        inventory: true,
+        inventoryBatches: {
+          include: {
+            inventoryBatch: true,
+          },
+        },
       },
     });
 
     if (!inventoryBatch) {
-      throw new NotFoundException(MESSAGES.BATCH_NOT_FOUND);
+      throw new NotFoundException(MESSAGES.PRODUCT_NOT_FOUND);
     }
 
     return inventoryBatch;

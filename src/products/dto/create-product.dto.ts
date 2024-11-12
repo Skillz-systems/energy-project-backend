@@ -34,12 +34,11 @@ export class CreateProductDto {
   @ApiPropertyOptional({ description: 'Product category Id of the product' })
   categoryId: string;
 
-  @IsArray()
-  @IsString({ each: true })
+  @IsString()
   @IsOptional()
   @ApiPropertyOptional({
     description: 'An array of inventory batch IDs associated with the product',
-    type: [String],
+    type: String,
   })
-  inventoryBatchIds: string[];
+  inventoryBatchIds: string;
 }
