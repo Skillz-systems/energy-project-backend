@@ -33,6 +33,10 @@ export class ProductsController {
     type: CreateProductDto,
     description: 'Json structure for request payload',
   })
+  @ApiOperation({
+    summary: 'Create product',
+    description: 'Create product',
+  })
   @ApiBadRequestResponse({})
   @ApiConsumes('multipart/form-data')
   @HttpCode(HttpStatus.CREATED)
@@ -72,6 +76,10 @@ export class ProductsController {
   @ApiOkResponse({
     description: 'Fetch all products with pagination',
     isArray: true,
+  })
+  @ApiOperation({
+    summary: 'Fetch all products with pagination',
+    description: 'Fetch all products with pagination',
   })
   @ApiBadRequestResponse({})
   @ApiExtraModels(GetProductsDto)
@@ -191,6 +199,10 @@ export class ProductsController {
     description: 'Fetch Product Tabs',
     isArray: true,
   })
+  @ApiOperation({
+    summary: 'Fetch Product Tabs for a particular product',
+    description: 'Fetch Product Tabs for a particular product',
+  })
   @ApiBadRequestResponse({})
   @HttpCode(HttpStatus.OK)
   @Get(':id/tabs')
@@ -221,10 +233,43 @@ export class ProductsController {
     description: 'Fetch Product Inventory',
     isArray: true,
   })
+
+  @ApiOperation({
+    summary: 'Fetch product inventory for a particular product',
+    description: 'Fetch product inventory for a particular product',
+  })
   @ApiBadRequestResponse({})
   @HttpCode(HttpStatus.OK)
   @Get(':id/inventory')
   async getProductInventory(@Param('id') productId: string) {
     return this.productsService.getProductInventory(productId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Products}`],
+  })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiOkResponse({
+    description: 'Fetch Product statistics',
+  })
+  @ApiOperation({
+    summary: 'Fetch Product statistics',
+    description: 'Fetch Product statistics',
+  })
+  @ApiBadRequestResponse({})
+  @HttpCode(HttpStatus.OK)
+  @Get('/statistics/view')
+  async getProductStatistics() {
+    return this.productsService.getProductStatistics();
   }
 }

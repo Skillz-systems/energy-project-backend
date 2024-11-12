@@ -216,4 +216,16 @@ export class ProductsService {
 
     return inventoryBatch;
   }
+
+  async getProductStatistics() {
+    const allProducts = await this.prisma.product.count();
+
+    if (!allProducts) {
+      throw new NotFoundException(MESSAGES.PRODUCT_NOT_FOUND);
+    }
+
+    return {
+      allProducts
+    }
+  }
 }
