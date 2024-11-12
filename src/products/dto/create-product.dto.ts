@@ -1,4 +1,4 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsArray } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateProductDto {
@@ -34,7 +34,12 @@ export class CreateProductDto {
   @ApiPropertyOptional({ description: 'Product category Id of the product' })
   categoryId: string;
 
-  @IsString()
-  @ApiPropertyOptional({ description: 'inventoryBatchId of the product' })
-  inventoryBatchId: string;
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  @ApiPropertyOptional({
+    description: 'An array of inventory batch IDs associated with the product',
+    type: [String],
+  })
+  inventoryBatchIds: string[];
 }

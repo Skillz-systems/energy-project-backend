@@ -23,7 +23,7 @@ export class ProductsService {
   }
 
   async create(createProductDto: CreateProductDto, file: Express.Multer.File,) {
-    const { name, description, price, currency, paymentModes, categoryId, inventoryBatchId } = createProductDto;
+    const { name, description, price, currency, paymentModes, categoryId, inventoryBatchIds } = createProductDto;
 
 
     const image = (await this.uploadInventoryImage(file)).secure_url;
@@ -37,7 +37,11 @@ export class ProductsService {
         currency,
         paymentModes,
         categoryId,
-        inventoryBatchId,
+        inventoryBatches: inventoryBatchIds?.length
+          ? {
+              connect: inventoryBatchIds.map((id) => ({ id })), // Connect multiple inventory batches
+            }
+          : undefined,
       },
     });
   }
@@ -170,5 +174,20 @@ export class ProductsService {
     ];
 
     return tabs;
+  }
+
+  async getProductInventory(inventoryBatchId: string) {
+    const inventoryBatch = await this.prisma.inventoryBatch.findUnique({
+      where: { id: inventoryBatchId },
+      include: {
+        inventory: true,
+      },
+    });
+
+    if (!inventoryBatch) {
+      throw new NotFoundException(MESSAGES.BATCH_NOT_FOUND);
+    }
+
+    return inventoryBatch;
   }
 }

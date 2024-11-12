@@ -37,7 +37,7 @@ model InventoryBatch {
     updatedAt DateTime  @updatedAt
     deletedAt DateTime?
 
-    products Product[]
+    products ProductInventoryBatch[]
 
     inventoryId String     @db.ObjectId
     inventory   Inventory? @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
