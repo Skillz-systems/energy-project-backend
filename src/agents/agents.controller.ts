@@ -13,20 +13,20 @@ import { ActionEnum, SubjectEnum } from '@prisma/client';
 export class AgentsController {
   constructor(private readonly agentsService: AgentsService) {}
 
-  // @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
-  // @RolesAndPermissions({
-  //   permissions: [`${ActionEnum.manage}:${SubjectEnum.Agents}`],
-  // })
-  // @ApiBearerAuth('access_token')
-  // @ApiHeader({
-  //   name: 'Authorization',
-  //   description: 'JWT token used for authentication',
-  //   required: true,
-  //   schema: {
-  //     type: 'string',
-  //     example: 'Bearer <token>',
-  //   },
-  // })
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Agents}`],
+  })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
   @ApiBody({
     type: CreateAgentDto,
     description: 'Json structure for request payload',
