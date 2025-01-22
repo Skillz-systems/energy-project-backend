@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as cors from 'cors';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -13,10 +14,9 @@ async function bootstrap() {
   const allowedOrigins = configService.get<string>('ALLOWED_ORIGINS') || '*';
 
   app.enableCors({
-    origin: allowedOrigins,
+    origin: 'http://localhost:3000',//allowedOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
+    allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers
     credentials: true,
   });
 
@@ -49,7 +49,7 @@ async function bootstrap() {
 
   app.useGlobalFilters();
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
-  
+
 
   // Enable validation globally
   app.useGlobalPipes(new ValidationPipe());
