@@ -54,7 +54,7 @@ export class CreateInventoryBatchDto {
   })
   @Min(1)
   @IsNotEmpty()
-  numberOfStock: string;
+  numberOfStock: number;
 
   @ApiProperty({
     description: 'inventoryId Id',

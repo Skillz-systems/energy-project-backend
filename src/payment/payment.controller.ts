@@ -4,10 +4,10 @@ import {
   HttpCode,
   HttpStatus,
   Query,
-  // Res,
+  Res,
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
-// import { Response } from 'express';
+import { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
@@ -38,11 +38,11 @@ export class PaymentController {
   async verifyPayment(
     @Query('tx_ref') tx_ref: string,
     @Query('transaction_id') transaction_id: number,
-    // @Res() res: Response,
+    @Res() res: Response,
   ) {
-    return await this.paymentService.verifyPayment(tx_ref, transaction_id);
-    // return res.redirect(
-    //   this.config.get<string>('FRONTEND_SUCCESSFUL_SALES_URL'),
-    // );
+    await this.paymentService.verifyPayment(tx_ref, transaction_id);
+    return res.redirect(
+      this.config.get<string>('FRONTEND_SUCCESSFUL_SALES_URL'),
+    );
   }
 }

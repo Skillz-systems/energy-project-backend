@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PaymentMode, PaymentStatus } from '@prisma/client';
+import { PaymentMode, PaymentStatus, SalesStatus } from '@prisma/client';
 import { EmailService } from '../mailer/email.service';
 import { ConfigService } from '@nestjs/config';
 import { OpenPayGoService } from '../openpaygo/openpaygo.service';
@@ -47,7 +47,7 @@ export class PaymentService {
       customer: {
         email,
       },
-      payment_options: 'card,mobilemoney,ussd',
+      payment_options: 'banktransfer',
       customizations: {
         title: 'Product Purchase',
         description: `Payment for sale ${saleId}`,
@@ -80,21 +80,50 @@ export class PaymentService {
       where: {
         transactionRef: ref as string,
       },
-    });
-
-    if (paymentExist)
-      throw new BadRequestException(`Payment with ref: ${ref} does not exist.`);
-
-    const res = await this.flutterwaveService.verifyTransaction(transaction_id);
-    const paymentData = await this.prisma.payment.update({
-      where: { transactionRef: res.tx_ref },
-      data: {
-        paymentStatus: PaymentStatus.COMPLETED,
-        paymentResponse: res,
+      include: {
+        sale: true,
       },
     });
 
-    await this.handlePostPayment(paymentData);
+    if (!paymentExist)
+      throw new BadRequestException(`Payment with ref: ${ref} does not exist.`);
+
+    const res = await this.flutterwaveService.verifyTransaction(transaction_id);
+
+    if (
+      paymentExist.paymentStatus === PaymentStatus.FAILED &&
+      paymentExist.sale.status === SalesStatus.CANCELLED
+    ) {
+      const refundResponse = await this.flutterwaveService.refundPayment(
+        transaction_id,
+        res.data.charged_amount,
+      );
+
+      await this.prisma.payment.update({
+        where: { id: paymentExist.id },
+        data: {
+          paymentStatus: PaymentStatus.REFUNDED,
+          paymentResponse: refundResponse,
+        },
+      });
+
+      throw new BadRequestException(
+        'This sale is cancelled already. Refund Initialised!',
+      );
+    }
+
+    if (paymentExist.paymentStatus !== PaymentStatus.COMPLETED) {
+      const paymentData = await this.prisma.payment.update({
+        where: { id: paymentExist.id },
+        data: {
+          paymentStatus: PaymentStatus.COMPLETED,
+          paymentResponse: res,
+        },
+      });
+
+      await this.handlePostPayment(paymentData);
+    }
+
     return 'success';
   }
 
@@ -124,6 +153,10 @@ export class PaymentService {
         totalPaid: {
           increment: paymentData.amount,
         },
+        status:
+          sale.totalPaid + paymentData.amount >= sale.totalPrice
+            ? SalesStatus.COMPLETED
+            : SalesStatus.IN_INSTALLMENT,
       },
     });
 
@@ -180,7 +213,7 @@ export class PaymentService {
         subject: `Here are your device tokens`,
         template: './device-tokens',
         context: {
-          tokens: JSON.stringify(deviceTokens),
+          tokens: JSON.stringify(deviceTokens, undefined, 4),
         },
       });
     }
@@ -192,7 +225,7 @@ export class PaymentService {
         subject: `Here is your account details for installment payments`,
         template: './installment-account-details',
         context: {
-          details: JSON.stringify(sale.installmentAccountDetails),
+          details: JSON.stringify(sale.installmentAccountDetails, undefined, 4),
         },
       });
 

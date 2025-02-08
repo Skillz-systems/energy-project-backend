@@ -21,6 +21,8 @@ import { OpenpaygoModule } from './openpaygo/openpaygo.module';
 import { FlutterwaveModule } from './flutterwave/flutterwave.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
+import { CronjobsModule } from './cronjobs/cronjobs.module';
 
 @Module({
   imports: [
@@ -31,7 +33,9 @@ import { APP_GUARD } from '@nestjs/core';
         blockDuration: 120000, // 2 mins
       },
     ]),
-    
+
+    ScheduleModule.forRoot(),
+
     ConfigModule.forRoot({
       isGlobal: true,
     }),
@@ -52,6 +56,7 @@ import { APP_GUARD } from '@nestjs/core';
     ContractModule,
     OpenpaygoModule,
     FlutterwaveModule,
+    CronjobsModule,
   ],
   controllers: [AppController],
   providers: [

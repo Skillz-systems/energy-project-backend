@@ -89,8 +89,6 @@ export class FlutterwaveService {
           500,
         );
       }
-
-      console.log({ data });
       return data.data;
     } catch (error) {
       console.log({ error });
@@ -130,8 +128,6 @@ export class FlutterwaveService {
           400,
         );
       }
-
-      console.log({ response });
       return response.data;
     } catch (error) {
       console.log({ error });
@@ -143,13 +139,32 @@ export class FlutterwaveService {
     try {
       const response = await this.flw.Transaction.verify({ id: transactionId });
 
-      if (response.status !== 'success' || response.status !== 'completed') {
+      if (response.status !== 'success' && response.status !== 'completed') {
         throw new HttpException(
           response.message || 'Failed to verify transaction',
           400,
         );
       }
-      console.log({ response });
+      return response;
+    } catch (error) {
+      console.log({ error });
+
+      throw new Error(`Failed to verify transaction: ${error.message}`);
+    }
+  }
+
+  async refundPayment(transactionId: number, amountToRefund: number) {
+    try {
+      const response = await this.flw.Transaction.refund({
+        id: transactionId,
+        amount: amountToRefund,
+      });
+      if (response.status !== 'success' && response.status !== 'completed') {
+        throw new HttpException(
+          response.message || 'Failed to perform refund',
+          400,
+        );
+      }
       return response;
     } catch (error) {
       console.log({ error });

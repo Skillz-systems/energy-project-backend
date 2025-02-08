@@ -98,7 +98,6 @@ async function main() {
       account_status: 'ACTIVE',
       frequency: faker.number.int({ min: 1, max: 12 }),
       bank_name: faker.company.name(),
-      created_at: Date.now(),
       expiry_date: faker.date.future().toISOString(),
       note: faker.lorem.sentence(),
       amount: faker.finance.amount(),
@@ -142,6 +141,12 @@ async function main() {
 
   // await prisma.product.deleteMany();
   // await prisma.inventory.deleteMany();
+  // await prisma.category.updateMany({
+  //   data: {
+  //     parentId: null, // Unlink them from the parent
+  //   },
+  // });
+  // await prisma.category.deleteMany();
   // await prisma.productInventory.deleteMany();
   // await prisma.inventoryBatch.deleteMany(); // Clear the existing batches
   // await prisma.category.createMany({
@@ -191,7 +196,6 @@ async function main() {
   //     image: faker.image.url(),
   //     currency: 'NGN',
   //     paymentModes: faker.helpers.arrayElement(['CASH', 'CARD', 'PAYPAL']),
-  //     isTokenable: faker.datatype.boolean(), // Randomly set tokenable to true or false
   //     categoryId: faker.helpers.arrayElement(categoryIds),
   //     createdAt: new Date(),
   //     updatedAt: new Date(),
@@ -207,6 +211,7 @@ async function main() {
   //   data: Array.from({ length: 10 }).map(() => ({
   //     productId: faker.helpers.arrayElement(productIdsList),
   //     inventoryId: faker.helpers.arrayElement(inventoryIds),
+  //     quantity: 10,
   //   })),
   // });
 
@@ -267,7 +272,7 @@ async function main() {
   //   })),
   // });
 
-  // // Retrieve inserted agents
+  // Retrieve inserted agents
   // const agents = await prisma.agent.findMany();
   // const agentIds = agents.map((agent) => agent.id);
 

@@ -4,20 +4,24 @@ import { Type } from 'class-transformer';
 import { UserStatus } from '@prisma/client';
 
 export class GetAgentsDto {
-  @ApiPropertyOptional({ description: 'Page number for pagination', example: 1 })
+  @ApiPropertyOptional({
+    description: 'Page number for pagination',
+    type: String,
+    example: '',
+  })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page?: number = 1;
+  @IsString()
+  page?: string;
 
-  @ApiPropertyOptional({ description: 'Number of agents per page', example: 10 })
+  @ApiPropertyOptional({
+    description: 'Number of items per page for pagination',
+    type: String,
+    example: '',
+  })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  limit?: number = 10;
-
+  @IsString()
+  limit?: string;
+  
   @ApiPropertyOptional({ description: 'Filter by status' })
   @IsOptional()
   @IsString()
@@ -29,7 +33,9 @@ export class GetAgentsDto {
   @IsDateString()
   createdAt?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by last update date (ISO format)' })
+  @ApiPropertyOptional({
+    description: 'Filter by last update date (ISO format)',
+  })
   @IsOptional()
   @IsDateString()
   updatedAt?: string;

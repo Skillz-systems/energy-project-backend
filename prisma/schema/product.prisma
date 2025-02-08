@@ -29,6 +29,7 @@ model ProductInventory {
   productId String  @db.ObjectId
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
+  quantity    Int
   inventoryId String    @db.ObjectId
   inventory   Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
 

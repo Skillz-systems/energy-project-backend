@@ -188,7 +188,7 @@ export class CreateSalesDto {
     example: 1234567890,
   })
   @Length(11, 11, {
-    message: "bvn must be exactly 11 characters"
+    message: 'bvn must be exactly 11 characters',
   })
   @IsOptional()
   @IsString()
@@ -197,14 +197,14 @@ export class CreateSalesDto {
   @ApiProperty({
     description: 'An array of sale product items',
     type: [SaleItemDto],
-    required: false,
+    required: true,
   })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => SaleItemDto)
-  saleItems?: SaleItemDto[];
+  saleItems: SaleItemDto[];
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description:
       'Optional Next of kin details for customer. Must be provided if payment mode is installment',
     type: NextOfKinDto,
@@ -214,7 +214,7 @@ export class CreateSalesDto {
   @Type(() => NextOfKinDto)
   nextOfKinDetails?: NextOfKinDto;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description:
       'Optional identification details for customer. Must be provided if payment mode is installment',
     type: IdentificationDto,
@@ -224,7 +224,7 @@ export class CreateSalesDto {
   @Type(() => IdentificationDto)
   identificationDetails?: IdentificationDto;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description:
       'Optional identification details for customer. Must be provided if payment mode is installment',
     type: GuarantorDto,

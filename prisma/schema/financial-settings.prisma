@@ -1,9 +1,9 @@
 model FinancialSettings {
-    id              String @id @default(auto()) @map("_id") @db.ObjectId
-    outrightMargin  Float  @default(0.2) // 20%
-    loanMargin      Float  @default(0.15) // 15%
-    monthlyInterest Float  @default(0.04) // 4%
+  id              String @id @default(auto()) @map("_id") @db.ObjectId
+  outrightMargin  Float  @default(0.2) // 20%
+  loanMargin      Float  @default(0.15) // 15%
+  monthlyInterest Float  @default(0.04) // 4%
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

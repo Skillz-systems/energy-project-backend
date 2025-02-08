@@ -11,7 +11,8 @@ import { GetProductsDto } from './dto/get-products.dto';
 import { MESSAGES } from '../constants';
 import { CreateProductCategoryDto } from './dto/create-category.dto';
 import { CategoryTypes, Prisma } from '@prisma/client';
-import { ObjectId } from 'mongodb';
+import { plainToInstance } from 'class-transformer';
+import { CategoryEntity } from 'src/utils/entity/category';
 
 @Injectable()
 export class ProductsService {
@@ -31,11 +32,14 @@ export class ProductsService {
     file: Express.Multer.File,
     creatorId: string,
   ) {
-    const { name, description, currency, paymentModes, categoryId } =
-      createProductDto;
-
-    if (!ObjectId.isValid(categoryId))
-      throw new BadRequestException('Invalid Product Category');
+    const {
+      name,
+      description,
+      currency,
+      paymentModes,
+      categoryId,
+      inventories,
+    } = createProductDto;
 
     const isCategoryValid = await this.prisma.category.findFirst({
       where: {
@@ -48,32 +52,37 @@ export class ProductsService {
       throw new BadRequestException('Invalid Product Category');
     }
 
-    let batchIds: string[] = [];
+    const productInventoryIds = inventories?.map((ivt) => ivt.inventoryId);
 
-    const inventoryBatchId: string | string[] =
-      createProductDto.inventoryBatchId;
-
-    if (typeof inventoryBatchId === 'string') {
-      batchIds = inventoryBatchId.split(',').map((id) => id.trim());
-    } else if (Array.isArray(inventoryBatchId)) {
-      batchIds = inventoryBatchId;
+    if (productInventoryIds.length === 0) {
+      throw new BadRequestException('No inventory IDs provided.');
     }
 
-    for (let i = 0; i < batchIds.length; i++) {
-      if (!ObjectId.isValid(batchIds[i]))
-        throw new BadRequestException(
-          `Invalid Inventory Batch ID - ${batchIds[i]}`,
-        );
+    // Find all inventories from the DB
+    const inventoriesFromDb = await this.prisma.inventory.findMany({
+      where: {
+        id: {
+          in: productInventoryIds,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    // Find invalid inventory IDs by comparing with existing DB records
+    const validInventoryIds = new Set(
+      inventoriesFromDb.map((inventory) => inventory.id),
+    );
+    const invalidInventoryIds = productInventoryIds.filter(
+      (id) => !validInventoryIds.has(id),
+    );
+
+    if (invalidInventoryIds.length > 0) {
+      throw new BadRequestException(
+        `Invalid inventory IDs: ${invalidInventoryIds.join(', ')}`,
+      );
     }
-    // if (typeof JSON.parse(inventoryBatchId) === 'string') {
-    //   batchIds = inventoryBatchId.split(',').map((id) => id.trim());
-    // } else if (Array.isArray(JSON.parse(inventoryBatchId))) {
-    //   batchIds = JSON.parse(inventoryBatchId);
-    // }
-    // Ensure inventoryBatchIds is an array
-    // const batchIds = Array.isArray(inventoryBatchIds)
-    //   ? inventoryBatchIds
-    //   : inventoryBatchIds.split(',').map((id) => id.trim());
 
     const image = (await this.uploadInventoryImage(file)).secure_url;
 
@@ -89,15 +98,13 @@ export class ProductsService {
       },
     });
 
-    if (inventoryBatchId?.length) {
-      // Create many-to-many links in the ProductInventoryBatch table
-      await this.prisma.productInventory.createMany({
-        data: batchIds?.map((inventoryId) => ({
-          productId: product.id,
-          inventoryId,
-        })),
-      });
-    }
+    await this.prisma.productInventory.createMany({
+      data: inventories?.map(({ inventoryId, quantity }) => ({
+        productId: product.id,
+        inventoryId,
+        quantity,
+      })),
+    });
 
     return product;
   }
@@ -114,40 +121,27 @@ export class ProductsService {
       search,
     } = getProductsDto;
 
-    const whereConditions: Prisma.ProductWhereInput = {};
+    const whereConditions: Prisma.ProductWhereInput = {
+      AND: [
+        search
+          ? {
+              OR: [
+                { name: { contains: search, mode: 'insensitive' } },
+                { description: { contains: search, mode: 'insensitive' } },
+              ],
+            }
+          : {},
+        categoryId ? { categoryId } : {},
+        createdAt ? { createdAt: new Date(createdAt) } : {},
+        updatedAt ? { updatedAt: new Date(updatedAt) } : {},
+      ],
+    };
 
-    // Apply filtering conditions
-    if (categoryId) whereConditions.categoryId = categoryId;
-    if (createdAt) whereConditions.createdAt = { gte: new Date(createdAt) };
-    if (updatedAt) whereConditions.updatedAt = { gte: new Date(updatedAt) };
+    const pageNumber = parseInt(String(page), 10);
+    const limitNumber = parseInt(String(limit), 10);
 
-    if (search) {
-      whereConditions.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        // { price: { equals: parseFloat(search) } },
-        // Add any other fields you want to search against
-      ];
-    }
-
-    // if (search) {
-    //   // Check if the search term is a valid number (to search price)
-    //   const isNumber = !isNaN(parseFloat(search));
-  
-    //   whereConditions.OR = [
-    //     {
-    //       name: { contains: search, mode: 'insensitive' }, // Searching for product name
-    //     },
-    //     ...(isNumber
-    //       ? [
-    //           {
-    //             price: { equals: parseFloat(search) }, // Search by price if it's a number
-    //           },
-    //         ]
-    //       : []),
-    //   ];
-    // }
-
-    const skip = (page - 1) * limit;
+    const skip = (pageNumber - 1) * limitNumber;
+    const take = limitNumber;
 
     const orderBy = sortField
       ? {
@@ -156,28 +150,32 @@ export class ProductsService {
       : undefined;
 
     // Fetch products with pagination and filters
-    const products = await this.prisma.product.findMany({
+    const result = await this.prisma.product.findMany({
       where: whereConditions,
       skip,
-      take: limit,
+      take,
       orderBy,
       include: {
-        // inventoryBatches: {
-        //   include: {
-        //     inventoryBatch: true,
-        //   },
-        // },
         category: true,
         creatorDetails: true,
+        inventories: {
+          include: {
+            inventory: {
+              include: { batches: true },
+            },
+          },
+        },
       },
     });
+
+    const updatedResults = result.map(this.mapProductToResponseDto);
 
     const total = await this.prisma.product.count({
       where: whereConditions,
     });
 
     return {
-      products,
+      updatedResults,
       total,
       page,
       totalPages: limit === 0 ? 0 : Math.ceil(total / limit),
@@ -185,15 +183,17 @@ export class ProductsService {
     };
   }
 
-  async findOne(id: string) {
+  async getProduct(id: string) {
     const product = await this.prisma.product.findUnique({
       where: { id },
       include: {
         category: true,
-        creatorDetails: {
-          select: {
-            firstname: true,
-            lastname: true,
+        creatorDetails: true,
+        inventories: {
+          include: {
+            inventory: {
+              include: { batches: true },
+            },
           },
         },
       },
@@ -203,7 +203,7 @@ export class ProductsService {
       throw new NotFoundException(MESSAGES.PRODUCT_NOT_FOUND);
     }
 
-    return product;
+    return this.mapProductToResponseDto(product);
   }
 
   async createProductCategory(
@@ -211,15 +211,17 @@ export class ProductsService {
   ) {
     const { name } = createProductCategoryDto;
 
-
     const categoryExists = await this.prisma.category.findFirst({
       where: {
-        name
+        name,
+        type: CategoryTypes.PRODUCT,
       },
     });
 
     if (categoryExists) {
-      throw new ConflictException('A category with this name already exists');
+      throw new ConflictException(
+        `A product category with this name: ${name} already exists`,
+      );
     }
 
     return this.prisma.category.create({
@@ -307,6 +309,83 @@ export class ProductsService {
 
     return {
       allProducts,
+    };
+  }
+
+  private mapProductToResponseDto(
+    product: Prisma.ProductGetPayload<{
+      include: {
+        category: true;
+        creatorDetails: true;
+        inventories: {
+          include: {
+            inventory: {
+              include: {
+                batches: true;
+                inventoryCategory: true;
+                inventorySubCategory: true;
+              };
+            };
+          };
+        };
+      };
+    }>,
+  ) {
+    const { inventories, category, ...rest } = product;
+    const { maximumInventoryBatchPrice, minimumInventoryBatchPrice } =
+      inventories
+        .map(({ inventory }) => {
+          const { batches } = inventory;
+          const batchPrices = batches
+            .filter(({ remainingQuantity }) => remainingQuantity > 0)
+            .map((batch) => batch.price);
+
+          return {
+            minimumInventoryBatchPrice: batchPrices.length
+              ? Math.min(...batchPrices)
+              : 0.0,
+            maximumInventoryBatchPrice: batchPrices.length
+              ? Math.max(...batchPrices)
+              : 0.0,
+          };
+        })
+        .reduce(
+          (prev, curr) => {
+            prev.minimumInventoryBatchPrice += curr.minimumInventoryBatchPrice;
+            prev.maximumInventoryBatchPrice += curr.maximumInventoryBatchPrice;
+            return prev;
+          },
+          {
+            minimumInventoryBatchPrice: 0,
+            maximumInventoryBatchPrice: 0,
+          },
+        );
+
+    const priceRange = `₦${minimumInventoryBatchPrice.toFixed(2)} - ₦${maximumInventoryBatchPrice.toFixed(2)}`;
+
+    return {
+      ...rest,
+      inventories: inventories.map(({ inventory }) => {
+        const { batches, ...rest } = inventory;
+
+        const totalRemainingQuantities = batches.reduce(
+          (sum, batch) => sum + batch.remainingQuantity,
+          0,
+        );
+
+        const totalInitialQuantities = batches.reduce(
+          (sum, batch) => sum + batch.numberOfStock,
+          0,
+        );
+
+        return {
+          ...rest,
+          totalRemainingQuantities,
+          totalInitialQuantities,
+        };
+      }),
+      category: plainToInstance(CategoryEntity, category),
+      priceRange,
     };
   }
 }

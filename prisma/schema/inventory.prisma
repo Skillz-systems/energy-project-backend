@@ -43,6 +43,8 @@ model InventoryBatch {
   inventoryId String     @db.ObjectId
   inventory   Inventory? @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
 
+  salesBatchAlocation BatchAlocation[]
+
   @@map("inventory_batches")
 }
 

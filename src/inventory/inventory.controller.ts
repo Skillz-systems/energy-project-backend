@@ -117,6 +117,21 @@ export class InventoryController {
   @RolesAndPermissions({
     permissions: [`${ActionEnum.manage}:${SubjectEnum.Inventory}`],
   })
+  @Get('stats')
+  @ApiOkResponse({
+    description: 'Fetch Inventory Statistics',
+    isArray: true,
+  })
+  @ApiBadRequestResponse({})
+  @HttpCode(HttpStatus.OK)
+  async getInventoryStats() {
+    return await this.inventoryService.getInventoryStats();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Inventory}`],
+  })
   @ApiParam({
     name: 'id',
     description: 'Inventory id to fetch details',
@@ -193,21 +208,6 @@ export class InventoryController {
   @HttpCode(HttpStatus.OK)
   async getInventoryCategories() {
     return await this.inventoryService.getInventoryCategories();
-  }
-
-  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
-  @RolesAndPermissions({
-    permissions: [`${ActionEnum.manage}:${SubjectEnum.Inventory}`],
-  })
-  @Get('stats')
-  @ApiOkResponse({
-    description: 'Fetch Inventory Statistics',
-    isArray: true,
-  })
-  @ApiBadRequestResponse({})
-  @HttpCode(HttpStatus.OK)
-  async getInventoryStats() {
-    return await this.inventoryService.getInventoryStats();
   }
 
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)

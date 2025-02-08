@@ -1,7 +1,33 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, ParseFilePipeBuilder, UploadedFile, UseInterceptors, Get, Query, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  ParseFilePipeBuilder,
+  UploadedFile,
+  UseInterceptors,
+  Get,
+  Query,
+  Param,
+} from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiCreatedResponse, ApiExtraModels, ApiHeader, ApiOkResponse, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiCreatedResponse,
+  ApiExtraModels,
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { RolesAndPermissions } from '../auth/decorators/roles.decorator';
 import { ActionEnum, Product, SubjectEnum } from '@prisma/client';
 import { RolesAndPermissionsGuard } from '../auth/guards/roles.guard';
@@ -119,7 +145,7 @@ export class ProductsController {
       'This endpoint allows a permitted user fetch a product details.',
   })
   async getProduct(@Param('id') id: string): Promise<Product> {
-    const product = await this.productsService.findOne(id);
+    const product = await this.productsService.getProduct(id);
 
     return product;
   }

@@ -110,8 +110,6 @@ export class ListDevicesQueryDto {
   limit?: string;
 
   @ApiPropertyOptional({
-    description:
-      'Filter for devices created in the last 7 days e.g `true` or `1`',
     type: Boolean,
     example: 'true',
   })

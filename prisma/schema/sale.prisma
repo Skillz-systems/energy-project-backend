@@ -5,6 +5,8 @@ model Sales {
 
   saleItems SaleItem[]
 
+  batchAllocations BatchAlocation[]
+
   status SalesStatus
 
   customerId String   @db.ObjectId
@@ -41,12 +43,27 @@ model InstallmentAccountDetails {
   account_status String
   frequency      Int
   bank_name      String
-  created_at     Int
   expiry_date    String
   note           String
   amount         String
 
+  createdAt DateTime @default(now())
+
   sales Sales[]
+}
+
+model BatchAlocation {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  inventoryBatchId String         @db.ObjectId
+  inventoryBatch   InventoryBatch @relation(fields: [inventoryBatchId], references: [id], onDelete: Cascade)
+
+  quantity Int
+
+  price Float
+
+  Sales   Sales?  @relation(fields: [salesId], references: [id])
+  salesId String? @db.ObjectId
 }
 
 model SaleItem {
@@ -72,7 +89,8 @@ model SaleItem {
   installmentDuration      Int? // Duration in months
   installmentStartingPrice Float?
 
-  devices Device[]
+  deviceIDs String[] @db.ObjectId
+  devices   Device[] @relation(fields: [deviceIDs], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -106,4 +124,5 @@ enum SalesStatus {
   COMPLETED
   IN_INSTALLMENT
   UNPAID
+  CANCELLED // The shows sales that were not paid for in time hence, all it's inventories were restored.
 }

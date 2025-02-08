@@ -20,8 +20,7 @@ export class AgentsService {
   constructor(private prisma: PrismaService) {}
 
   async create(createAgentDto: CreateAgentDto, userId) {
-    const { email, addressType, location, ...otherData } =
-      createAgentDto;
+    const { email, addressType, location, ...otherData } = createAgentDto;
 
     const agentId = this.generateAgentNumber();
 
@@ -95,7 +94,7 @@ export class AgentsService {
   async getAll(getProductsDto: GetAgentsDto) {
     const {
       page = 1,
-      limit = 10,
+      limit = 100,
       status,
       createdAt,
       updatedAt,
@@ -108,16 +107,19 @@ export class AgentsService {
     if (createdAt) whereConditions.createdAt = { gte: new Date(createdAt) };
     if (updatedAt) whereConditions.updatedAt = { gte: new Date(updatedAt) };
 
-    const skip = (page - 1) * limit;
+    const pageNumber = parseInt(String(page), 10);
+    const limitNumber = parseInt(String(limit), 10);
 
+    const skip = (pageNumber - 1) * limitNumber;
+    const take = limitNumber;
     // Fetch products with pagination and filters
     const agents = await this.prisma.agent.findMany({
       where: whereConditions,
       include: {
-        user: true
+        user: true,
       },
       skip,
-      take: limit,
+      take,
       orderBy: {
         createdAt: 'desc',
       },
@@ -128,13 +130,11 @@ export class AgentsService {
     });
 
     return {
-      data: agents,
-      meta: {
-        total,
-        page,
-        lastPage: Math.ceil(total / limit),
-        limit,
-      },
+      agents,
+      total,
+      page,
+      limit,
+      totalPages: limitNumber === 0 ? 0 : Math.ceil(total / limitNumber),
     };
   }
 
@@ -146,7 +146,7 @@ export class AgentsService {
     const agent = await this.prisma.agent.findUnique({
       where: { id },
       include: {
-        user: true
+        user: true,
       },
     });
 

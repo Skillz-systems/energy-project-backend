@@ -96,7 +96,7 @@ export class CreateInventoryDto {
   })
   @Min(1)
   @IsNotEmpty()
-  numberOfStock: string;
+  numberOfStock: number;
 
   @ApiProperty({
     description: 'Category Id',

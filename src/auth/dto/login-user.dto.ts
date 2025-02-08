@@ -20,3 +20,4 @@ export class LoginUserDTO {
   @IsNotEmpty()
   password: string;
 }
+

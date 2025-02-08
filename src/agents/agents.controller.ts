@@ -55,7 +55,6 @@ export class AgentsController {
     type: CreateAgentDto,
     description: 'Json structure for request payload',
   })
-
   @ApiOkResponse({
     description: 'Create agent',
     schema: {
@@ -64,17 +63,27 @@ export class AgentsController {
         id: { type: 'string', example: '67484835c95cd2fe2f0ac63e' },
         agentId: { type: 'number', example: 52520059 },
         userId: { type: 'string', example: '67484835c95cd2fe2f0ac63d' },
-        createdAt: { type: 'string', format: 'date-time', example: '2024-11-28T10:38:45.906Z' },
-        updatedAt: { type: 'string', format: 'date-time', example: '2024-11-28T10:38:45.906Z' },
+        createdAt: {
+          type: 'string',
+          format: 'date-time',
+          example: '2024-11-28T10:38:45.906Z',
+        },
+        updatedAt: {
+          type: 'string',
+          format: 'date-time',
+          example: '2024-11-28T10:38:45.906Z',
+        },
         deletedAt: { type: 'string', nullable: true, example: null },
       },
     },
   })
-  
   @ApiBadRequestResponse({})
   @HttpCode(HttpStatus.CREATED)
   @Post('create')
-  async create(@Body() CreateAgentDto: CreateAgentDto, @GetUser('id') id: string,) {
+  async create(
+    @Body() CreateAgentDto: CreateAgentDto,
+    @GetUser('id') id: string,
+  ) {
     return await this.agentsService.create(CreateAgentDto, id);
   }
 
@@ -98,7 +107,7 @@ export class AgentsController {
     schema: {
       type: 'object',
       properties: {
-        data: {
+        agents: {
           type: 'array',
           items: {
             type: 'object',
@@ -106,8 +115,16 @@ export class AgentsController {
               id: { type: 'string', example: '6742722249c6bcb5fb8b296f' },
               agentId: { type: 'number', example: 94350766 },
               userId: { type: 'string', example: '6742722249c6bcb5fb8b296e' },
-              createdAt: { type: 'string', format: 'date-time', example: '2024-11-24T00:24:02.180Z' },
-              updatedAt: { type: 'string', format: 'date-time', example: '2024-11-24T00:24:02.180Z' },
+              createdAt: {
+                type: 'string',
+                format: 'date-time',
+                example: '2024-11-24T00:24:02.180Z',
+              },
+              updatedAt: {
+                type: 'string',
+                format: 'date-time',
+                example: '2024-11-24T00:24:02.180Z',
+              },
               deletedAt: { type: 'string', nullable: true, example: null },
               user: {
                 type: 'object',
@@ -127,9 +144,20 @@ export class AgentsController {
                   emailVerified: { type: 'boolean', example: true },
                   isBlocked: { type: 'boolean', example: false },
                   status: { type: 'string', example: 'barred' },
-                  roleId: { type: 'string', example: '670189eb3253ce51203d2c03' },
-                  createdAt: { type: 'string', format: 'date-time', example: '2024-11-24T00:24:02.162Z' },
-                  updatedAt: { type: 'string', format: 'date-time', example: '2024-11-24T00:24:02.162Z' },
+                  roleId: {
+                    type: 'string',
+                    example: '670189eb3253ce51203d2c03',
+                  },
+                  createdAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2024-11-24T00:24:02.162Z',
+                  },
+                  updatedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2024-11-24T00:24:02.162Z',
+                  },
                   deletedAt: { type: 'string', nullable: true, example: null },
                   lastLogin: { type: 'string', nullable: true, example: null },
                 },
@@ -137,19 +165,13 @@ export class AgentsController {
             },
           },
         },
-        meta: {
-          type: 'object',
-          properties: {
-            total: { type: 'number', example: 3 },
-            page: { type: 'number', example: 1 },
-            lastPage: { type: 'number', example: 1 },
-            limit: { type: 'number', example: 10 },
-          },
-        },
+        total: { type: 'number', example: 3 },
+        page: { type: 'number', example: 1 },
+        lastPage: { type: 'number', example: 1 },
+        limit: { type: 'number', example: 10 },
       },
     },
   })
-  
   @ApiOperation({
     summary: 'Fetch all agents with pagination',
     description: 'Fetch all agents with pagination',
@@ -188,8 +210,16 @@ export class AgentsController {
         id: { type: 'string', example: '6742722249c6bcb5fb8b296f' },
         agentId: { type: 'number', example: 94350766 },
         userId: { type: 'string', example: '6742722249c6bcb5fb8b296e' },
-        createdAt: { type: 'string', format: 'date-time', example: '2024-11-24T00:24:02.180Z' },
-        updatedAt: { type: 'string', format: 'date-time', example: '2024-11-24T00:24:02.180Z' },
+        createdAt: {
+          type: 'string',
+          format: 'date-time',
+          example: '2024-11-24T00:24:02.180Z',
+        },
+        updatedAt: {
+          type: 'string',
+          format: 'date-time',
+          example: '2024-11-24T00:24:02.180Z',
+        },
         deletedAt: { type: 'string', nullable: true, example: null },
         user: {
           type: 'object',
@@ -210,17 +240,23 @@ export class AgentsController {
             isBlocked: { type: 'boolean', example: false },
             status: { type: 'string', example: 'barred' },
             roleId: { type: 'string', example: '670189eb3253ce51203d2c03' },
-            createdAt: { type: 'string', format: 'date-time', example: '2024-11-24T00:24:02.162Z' },
-            updatedAt: { type: 'string', format: 'date-time', example: '2024-11-24T00:24:02.162Z' },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+              example: '2024-11-24T00:24:02.162Z',
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time',
+              example: '2024-11-24T00:24:02.162Z',
+            },
             deletedAt: { type: 'string', nullable: true, example: null },
             lastLogin: { type: 'string', nullable: true, example: null },
           },
         },
       },
-
     },
   })
-  
   @ApiResponse({
     status: 404,
     description: 'Agent not found.',
@@ -228,12 +264,11 @@ export class AgentsController {
   @Get(':id')
   @ApiOperation({
     summary: 'Fetch agent details',
-    description:
-      'This endpoint allows a permitted user fetch a agent details.',
+    description: 'This endpoint allows a permitted user fetch a agent details.',
   })
   async getAgent(@Param('id') id: string): Promise<Agent> {
     const agent = await this.agentsService.findOne(id);
-   
+
     return agent;
   }
 
@@ -253,16 +288,15 @@ export class AgentsController {
   })
   @ApiOkResponse({
     description: 'Fetch Agent statistics',
-      schema: {
-        type: 'object',
-  
-        properties: {
-          total: { type: 'number', example: 3 },
-          active: { type: 'number', example: 2 },
-          barred: { type: 'number', example: 1 },
+    schema: {
+      type: 'object',
 
-        }
-      }
+      properties: {
+        total: { type: 'number', example: 3 },
+        active: { type: 'number', example: 2 },
+        barred: { type: 'number', example: 1 },
+      },
+    },
   })
   @ApiOperation({
     summary: 'Fetch Agent statistics',
@@ -293,7 +327,6 @@ export class AgentsController {
     name: 'id',
     description: 'Agent id to fetch tabs',
   })
-
   @ApiOkResponse({
     description: 'Fetch Agent statistics',
     isArray: true,
@@ -303,7 +336,10 @@ export class AgentsController {
         type: 'object',
         properties: {
           name: { type: 'string', example: 'Agents Details' },
-          url: { type: 'string', example: '/agent/6742722249c6bcb5fb8b296f/details' },
+          url: {
+            type: 'string',
+            example: '/agent/6742722249c6bcb5fb8b296f/details',
+          },
           count: { type: 'number', nullable: true, example: null },
         },
         examples: {

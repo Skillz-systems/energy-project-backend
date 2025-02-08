@@ -42,7 +42,7 @@ describe('ProductsService', () => {
     const validBatchIds = [
       new ObjectId().toString(),
       new ObjectId().toString(),
-    ]; 
+    ];
     const createProductDto: CreateProductDto = {
       name: 'Test Product',
       description: 'A sample product description',
@@ -99,7 +99,7 @@ describe('ProductsService', () => {
       count: validBatchIds.length,
     });
 
-    const result = await service.create(createProductDto, file, creatorId); 
+    const result = await service.create(createProductDto, file, creatorId);
 
     expect(result).toEqual(
       expect.objectContaining({
@@ -134,7 +134,7 @@ describe('ProductsService', () => {
         categoryId: '6721acb96be4e1c85a8e294f',
         creatorId: '6721acb96be4e1c85a8e294f',
         image: 'https://sampleimage.com/image.jpg',
-        createdAt: new Date(), 
+        createdAt: new Date(),
         updatedAt: new Date(),
       },
     ]);
@@ -171,9 +171,9 @@ describe('ProductsService', () => {
             staffId: 'staff-id',
             longitude: '12.345678',
             latitude: '98.7654321',
-            emailVerified: true, 
+            emailVerified: true,
             isBlocked: false,
-            status: 'active', 
+            status: 'active',
             roleId: 'role-id',
             deletedAt: null,
           },
@@ -193,7 +193,6 @@ describe('ProductsService', () => {
 
     const result = await service.getAllProducts(mockGetProductsDto);
 
-    
     expect(result.products).toHaveLength(1);
     expect(result.products[0].name).toBe('Product 1');
   });
@@ -219,14 +218,14 @@ describe('ProductsService', () => {
 
       prisma.product.findUnique = jest.fn().mockResolvedValue(mockProduct);
 
-      const result = await service.findOne('1');
+      const result = await service.getProduct('1');
       expect(result).toEqual(mockProduct);
     });
 
     it('should throw NotFoundException if product is not found', async () => {
       prisma.product.findUnique = jest.fn().mockResolvedValue(null);
 
-      await expect(service.findOne('invalid-id')).rejects.toThrowError(
+      await expect(service.getProduct('invalid-id')).rejects.toThrowError(
         new NotFoundException(MESSAGES.PRODUCT_NOT_FOUND),
       );
     });
@@ -235,7 +234,9 @@ describe('ProductsService', () => {
   // Test for createProductCategory
   describe('createProductCategory', () => {
     it('should create a product category', async () => {
-      const createProductCategoryDto: CreateProductCategoryDto = { name: 'New Category' };
+      const createProductCategoryDto: CreateProductCategoryDto = {
+        name: 'New Category',
+      };
       const mockCategory = {
         id: '6721acb96be4e1c85a8e294f',
         name: 'New Category',
@@ -245,16 +246,24 @@ describe('ProductsService', () => {
       prisma.category.findFirst = jest.fn().mockResolvedValue(null); // No category exists
       prisma.category.create = jest.fn().mockResolvedValue(mockCategory);
 
-      const result = await service.createProductCategory(createProductCategoryDto);
+      const result = await service.createProductCategory(
+        createProductCategoryDto,
+      );
       expect(result).toEqual(mockCategory);
     });
 
     it('should throw ConflictException if category with the same name exists', async () => {
-      const createProductCategoryDto: CreateProductCategoryDto = { name: 'Existing Category' };
+      const createProductCategoryDto: CreateProductCategoryDto = {
+        name: 'Existing Category',
+      };
 
-      prisma.category.findFirst = jest.fn().mockResolvedValue({ id: 'existing-id' }); // Category exists
+      prisma.category.findFirst = jest
+        .fn()
+        .mockResolvedValue({ id: 'existing-id' }); // Category exists
 
-      await expect(service.createProductCategory(createProductCategoryDto)).rejects.toThrowError(
+      await expect(
+        service.createProductCategory(createProductCategoryDto),
+      ).rejects.toThrowError(
         new ConflictException('A category with this name already exists'),
       );
     });
@@ -264,8 +273,16 @@ describe('ProductsService', () => {
   describe('getAllCategories', () => {
     it('should return all product categories', async () => {
       const mockCategories = [
-        { id: '6721acb96be4e1c85a8e294f', name: 'Category 1', type: CategoryTypes.PRODUCT },
-        { id: '6721acb96be4e1c85a8e294f', name: 'Category 2', type: CategoryTypes.PRODUCT },
+        {
+          id: '6721acb96be4e1c85a8e294f',
+          name: 'Category 1',
+          type: CategoryTypes.PRODUCT,
+        },
+        {
+          id: '6721acb96be4e1c85a8e294f',
+          name: 'Category 2',
+          type: CategoryTypes.PRODUCT,
+        },
       ];
 
       prisma.category.findMany = jest.fn().mockResolvedValue(mockCategories);
@@ -287,10 +304,20 @@ describe('ProductsService', () => {
 
       const result = await service.getProductTabs('6721acb96be4e1c85a8e294f');
       expect(result).toEqual([
-        { name: 'Product Details', url: '/product/6721acb96be4e1c85a8e294f/details' },
+        {
+          name: 'Product Details',
+          url: '/product/6721acb96be4e1c85a8e294f/details',
+        },
         { name: 'Stats', url: '/product/6721acb96be4e1c85a8e294f/stats' },
-        { name: 'Inventory Details', url: '/product/6721acb96be4e1c85a8e294f/inventory' },
-        { name: 'Customers', url: '/product/6721acb96be4e1c85a8e294f/customers', count: 5 },
+        {
+          name: 'Inventory Details',
+          url: '/product/6721acb96be4e1c85a8e294f/inventory',
+        },
+        {
+          name: 'Customers',
+          url: '/product/6721acb96be4e1c85a8e294f/customers',
+          count: 5,
+        },
       ]);
     });
 
@@ -309,11 +336,15 @@ describe('ProductsService', () => {
       const mockInventoryBatch = {
         id: '6721acb96be4e1c85a8e294f',
         inventoryBatches: [
-          { inventoryBatch: { id: '6721acb96be4e1c85a8e294f', name: 'Batch 1' } },
+          {
+            inventoryBatch: { id: '6721acb96be4e1c85a8e294f', name: 'Batch 1' },
+          },
         ],
       };
 
-      prisma.product.findUnique = jest.fn().mockResolvedValue(mockInventoryBatch);
+      prisma.product.findUnique = jest
+        .fn()
+        .mockResolvedValue(mockInventoryBatch);
 
       const result = await service.getProductInventory('1');
       expect(result).toEqual(mockInventoryBatch);
@@ -322,9 +353,9 @@ describe('ProductsService', () => {
     it('should throw NotFoundException if product is not found', async () => {
       prisma.product.findUnique = jest.fn().mockResolvedValue(null);
 
-      await expect(service.getProductInventory('invalid-id')).rejects.toThrowError(
-        new NotFoundException(MESSAGES.PRODUCT_NOT_FOUND),
-      );
+      await expect(
+        service.getProductInventory('invalid-id'),
+      ).rejects.toThrowError(new NotFoundException(MESSAGES.PRODUCT_NOT_FOUND));
     });
   });
 

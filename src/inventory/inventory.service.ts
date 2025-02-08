@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -108,8 +109,8 @@ export class InventoryService {
         batchNumber: Date.now() - 100,
         costOfItem: parseFloat(createInventoryDto.costOfItem),
         price: parseFloat(createInventoryDto.price),
-        numberOfStock: Number(createInventoryDto.numberOfStock),
-        remainingQuantity: Number(createInventoryDto.numberOfStock),
+        numberOfStock: createInventoryDto.numberOfStock,
+        remainingQuantity: createInventoryDto.numberOfStock,
       },
     });
 
@@ -135,8 +136,8 @@ export class InventoryService {
         inventoryId: createInventoryBatchDto.inventoryId,
         costOfItem: parseFloat(createInventoryBatchDto.costOfItem),
         price: parseFloat(createInventoryBatchDto.price),
-        numberOfStock: Number(createInventoryBatchDto.numberOfStock),
-        remainingQuantity: Number(createInventoryBatchDto.numberOfStock),
+        numberOfStock: createInventoryBatchDto.numberOfStock,
+        remainingQuantity: createInventoryBatchDto.numberOfStock,
       },
     });
 
@@ -202,50 +203,7 @@ export class InventoryService {
       },
     });
 
-    const updatedResults = result.map(
-      ({ batches, inventoryCategory, inventorySubCategory, ...rest }) => {
-        // Calculate salePrice
-        let salePrice = '';
-        if (batches.length) {
-          const batchPrices = batches.map((batch) => batch.price);
-          const minimumInventoryBatchPrice = Math.floor(
-            Math.min(...batchPrices),
-          );
-          const maximumInventoryBatchPrice = Math.ceil(
-            Math.max(...batchPrices),
-          );
-          salePrice = `₦${minimumInventoryBatchPrice} - ₦${maximumInventoryBatchPrice}`;
-        }
-        const inventoryValue = batches.reduce(
-          (sum, batch) => sum + batch.remainingQuantity * batch.price,
-          0,
-        );
-
-        const totalRemainingQuantities = batches.reduce(
-          (sum, batch) => sum + batch.remainingQuantity,
-          0,
-        );
-
-        const totalInitialQuantities = batches.reduce(
-          (sum, batch) => sum + batch.numberOfStock,
-          0,
-        );
-
-        return {
-          ...rest,
-          inventoryCategory: plainToInstance(CategoryEntity, inventoryCategory),
-          inventorySubCategory: plainToInstance(
-            CategoryEntity,
-            inventorySubCategory,
-          ),
-          batches: plainToInstance(InventoryBatchEntity, batches),
-          salePrice,
-          inventoryValue,
-          totalRemainingQuantities,
-          totalInitialQuantities,
-        };
-      },
-    );
+    const updatedResults = result.map(this.mapInventoryToResponseDto);
 
     const totalCount = await this.prisma.inventory.count({
       where: filterConditions,
@@ -265,11 +223,8 @@ export class InventoryService {
       where: { id: inventoryId },
       include: {
         batches: true,
-        inventoryCategory: {
-          include: {
-            children: true,
-          },
-        },
+        inventoryCategory: true,
+        inventorySubCategory: true,
       },
     });
 
@@ -277,14 +232,7 @@ export class InventoryService {
       throw new NotFoundException(MESSAGES.INVENTORY_NOT_FOUND);
     }
 
-    return plainToInstance(InventoryEntity, {
-      ...inventory,
-      inventoryCategory: plainToInstance(
-        CategoryEntity,
-        inventory.inventoryCategory,
-      ),
-      batches: plainToInstance(InventoryBatchEntity, inventory.batches),
-    });
+    return this.mapInventoryToResponseDto(inventory);
   }
 
   async getInventoryBatch(inventoryBatchId: string) {
@@ -311,13 +259,14 @@ export class InventoryService {
     for (const category of categories) {
       const { name, subCategories, parentId } = category;
 
-      const existingCategory = await this.prisma.category.findUnique({
-        where: { name },
+      const existingCategoryByName = await this.prisma.category.findFirst({
+        where: { name, type: CategoryTypes.INVENTORY },
       });
 
-      if (existingCategory) {
-        existingCategoryNames.push(name);
-        continue;
+      if (existingCategoryByName) {
+        throw new ConflictException(
+          `An inventory category with this name: ${name} already exists`,
+        );
       }
 
       if (parentId) {
@@ -413,5 +362,55 @@ export class InventoryService {
     ];
 
     return tabs;
+  }
+
+  mapInventoryToResponseDto(
+    inventory: Prisma.InventoryGetPayload<{
+      include: {
+        inventoryCategory: true;
+        inventorySubCategory: true;
+        batches: true;
+      };
+    }>,
+  ) {
+    const { batches, inventoryCategory, inventorySubCategory, ...rest } =
+      inventory;
+    let salePrice = '';
+    if (batches.length) {
+      const batchPrices = batches
+        .filter(({ remainingQuantity }) => remainingQuantity > 0)
+        .map((batch) => batch.price);
+      const minimumInventoryBatchPrice = Math.floor(Math.min(...batchPrices));
+      const maximumInventoryBatchPrice = Math.ceil(Math.max(...batchPrices));
+      salePrice = `₦${minimumInventoryBatchPrice} - ₦${maximumInventoryBatchPrice}`;
+    }
+    const inventoryValue = batches.reduce(
+      (sum, batch) => sum + batch.remainingQuantity * batch.price,
+      0,
+    );
+
+    const totalRemainingQuantities = batches.reduce(
+      (sum, batch) => sum + batch.remainingQuantity,
+      0,
+    );
+
+    const totalInitialQuantities = batches.reduce(
+      (sum, batch) => sum + batch.numberOfStock,
+      0,
+    );
+
+    return {
+      ...rest,
+      inventoryCategory: plainToInstance(CategoryEntity, inventoryCategory),
+      inventorySubCategory: plainToInstance(
+        CategoryEntity,
+        inventorySubCategory,
+      ),
+      batches: plainToInstance(InventoryBatchEntity, batches),
+      salePrice,
+      inventoryValue,
+      totalRemainingQuantities,
+      totalInitialQuantities,
+    };
   }
 }

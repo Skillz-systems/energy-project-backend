@@ -1,22 +1,22 @@
 model Device {
-    id String @id @default(auto()) @map("_id") @db.ObjectId
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
-    serialNumber        String  @unique
-    key                 String
-    startingCode        String?
-    count               String?
-    timeDivider         String?
-    restrictedDigitMode Boolean @default(false)
-    hardwareModel       String?
-    firmwareVersion     String?
+  serialNumber        String  @unique
+  key                 String
+  startingCode        String?
+  count               String?
+  timeDivider         String?
+  restrictedDigitMode Boolean @default(false)
+  hardwareModel       String?
+  firmwareVersion     String?
 
-    isTokenable Boolean @default(false)
+  isTokenable Boolean @default(false)
 
-    saleItemId String?   @db.ObjectId
-    saleItem   SaleItem? @relation(fields: [saleItemId], references: [id])
+  saleItemIDs String[]   @db.ObjectId
+  saleItems   SaleItem[] @relation(fields: [saleItemIDs], references: [id])
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-    @@map("devices")
+  @@map("devices")
 }
