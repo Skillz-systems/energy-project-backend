@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -9,8 +10,9 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { GetProductsDto } from './dto/get-products.dto';
 import { MESSAGES } from '../constants';
 import { CreateProductCategoryDto } from './dto/create-category.dto';
-import { CategoryTypes } from '@prisma/client';
-import { ObjectId } from 'mongodb';
+import { CategoryTypes, Prisma } from '@prisma/client';
+import { plainToInstance } from 'class-transformer';
+import { CategoryEntity } from 'src/utils/entity/category';
 
 @Injectable()
 export class ProductsService {
@@ -30,11 +32,14 @@ export class ProductsService {
     file: Express.Multer.File,
     creatorId: string,
   ) {
-    const { name, description, price, currency, paymentModes, categoryId } =
-      createProductDto;
-
-    if (!ObjectId.isValid(categoryId))
-      throw new BadRequestException('Invalid Product Category');
+    const {
+      name,
+      description,
+      currency,
+      paymentModes,
+      categoryId,
+      inventories,
+    } = createProductDto;
 
     const isCategoryValid = await this.prisma.category.findFirst({
       where: {
@@ -47,30 +52,37 @@ export class ProductsService {
       throw new BadRequestException('Invalid Product Category');
     }
 
-    let batchIds: string[] = [];
+    const productInventoryIds = inventories?.map((ivt) => ivt.inventoryId);
 
-    const inventoryBatchId: string | string[] =
-      createProductDto.inventoryBatchId;
-
-    if (typeof inventoryBatchId === 'string') {
-      batchIds = inventoryBatchId.split(',').map((id) => id.trim());
-    } else if (Array.isArray(inventoryBatchId)) {
-      batchIds = inventoryBatchId;
+    if (productInventoryIds.length === 0) {
+      throw new BadRequestException('No inventory IDs provided.');
     }
 
-    for (let i = 0; i < batchIds.length; i++) {
-      if (!ObjectId.isValid(batchIds[i]))
-        throw new BadRequestException(`Invalid Inventory Batch ID - ${batchIds[i]}`);
+    // Find all inventories from the DB
+    const inventoriesFromDb = await this.prisma.inventory.findMany({
+      where: {
+        id: {
+          in: productInventoryIds,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    // Find invalid inventory IDs by comparing with existing DB records
+    const validInventoryIds = new Set(
+      inventoriesFromDb.map((inventory) => inventory.id),
+    );
+    const invalidInventoryIds = productInventoryIds.filter(
+      (id) => !validInventoryIds.has(id),
+    );
+
+    if (invalidInventoryIds.length > 0) {
+      throw new BadRequestException(
+        `Invalid inventory IDs: ${invalidInventoryIds.join(', ')}`,
+      );
     }
-    // if (typeof JSON.parse(inventoryBatchId) === 'string') {
-    //   batchIds = inventoryBatchId.split(',').map((id) => id.trim());
-    // } else if (Array.isArray(JSON.parse(inventoryBatchId))) {
-    //   batchIds = JSON.parse(inventoryBatchId);
-    // }
-    // Ensure inventoryBatchIds is an array
-    // const batchIds = Array.isArray(inventoryBatchIds)
-    //   ? inventoryBatchIds
-    //   : inventoryBatchIds.split(',').map((id) => id.trim());
 
     const image = (await this.uploadInventoryImage(file)).secure_url;
 
@@ -79,7 +91,6 @@ export class ProductsService {
         name,
         description,
         image,
-        price,
         currency,
         paymentModes,
         categoryId,
@@ -87,15 +98,13 @@ export class ProductsService {
       },
     });
 
-    if (inventoryBatchId?.length) {
-      // Create many-to-many links in the ProductInventoryBatch table
-      await this.prisma.productInventoryBatch.createMany({
-        data: batchIds?.map((inventoryBatchId) => ({
-          productId: product.id,
-          inventoryBatchId,
-        })),
-      });
-    }
+    await this.prisma.productInventory.createMany({
+      data: inventories?.map(({ inventoryId, quantity }) => ({
+        productId: product.id,
+        inventoryId,
+        quantity,
+      })),
+    });
 
     return product;
   }
@@ -107,61 +116,85 @@ export class ProductsService {
       categoryId,
       createdAt,
       updatedAt,
+      sortField,
+      sortOrder,
+      search,
     } = getProductsDto;
 
-    const whereConditions: any = {};
+    const whereConditions: Prisma.ProductWhereInput = {
+      AND: [
+        search
+          ? {
+              OR: [
+                { name: { contains: search, mode: 'insensitive' } },
+                { description: { contains: search, mode: 'insensitive' } },
+              ],
+            }
+          : {},
+        categoryId ? { categoryId } : {},
+        createdAt ? { createdAt: new Date(createdAt) } : {},
+        updatedAt ? { updatedAt: new Date(updatedAt) } : {},
+      ],
+    };
 
-    // Apply filtering conditions
-    if (categoryId) whereConditions.productCategoryId = categoryId;
-    if (createdAt) whereConditions.createdAt = { gte: new Date(createdAt) };
-    if (updatedAt) whereConditions.updatedAt = { gte: new Date(updatedAt) };
+    const pageNumber = parseInt(String(page), 10);
+    const limitNumber = parseInt(String(limit), 10);
 
-    const skip = (page - 1) * limit;
+    const skip = (pageNumber - 1) * limitNumber;
+    const take = limitNumber;
+
+    const orderBy = sortField
+      ? {
+          [sortField]: sortOrder || 'asc',
+        }
+      : undefined;
 
     // Fetch products with pagination and filters
-    const products = await this.prisma.product.findMany({
+    const result = await this.prisma.product.findMany({
       where: whereConditions,
       skip,
-      take: limit,
-      orderBy: {
-        createdAt: 'desc',
-      },
+      take,
+      orderBy,
       include: {
-        // inventoryBatches: {
-        //   include: {
-        //     inventoryBatch: true,
-        //   },
-        // },
         category: true,
         creatorDetails: true,
+        inventories: {
+          include: {
+            inventory: {
+              include: { batches: true },
+            },
+          },
+        },
       },
     });
+
+    const updatedResults = result.map(this.mapProductToResponseDto);
 
     const total = await this.prisma.product.count({
       where: whereConditions,
     });
 
     return {
-      data: products,
-      meta: {
-        total,
-        page,
-        lastPage: Math.ceil(total / limit),
-        limit,
-      },
+      updatedResults,
+      total,
+      page,
+      totalPages: limit === 0 ? 0 : Math.ceil(total / limit),
+      limit,
     };
   }
 
-  async findOne(id: string) {
+  async getProduct(id: string) {
     const product = await this.prisma.product.findUnique({
       where: { id },
       include: {
         category: true,
-        creatorDetails: {
-          select: {
-            firstname: true, 
-            lastname: true, 
-          }
+        creatorDetails: true,
+        inventories: {
+          include: {
+            inventory: {
+              include: { batches: true },
+            },
+          },
         },
       },
     });
@@ -170,30 +203,31 @@ export class ProductsService {
       throw new NotFoundException(MESSAGES.PRODUCT_NOT_FOUND);
     }
 
-    return product;
+    return this.mapProductToResponseDto(product);
   }
 
   async createProductCategory(
     createProductCategoryDto: CreateProductCategoryDto,
   ) {
-    const { name, parentId } = createProductCategoryDto;
+    const { name } = createProductCategoryDto;
 
-    // Check if the parent category exists if parentId is provided
-    if (parentId) {
-      const parentCategory = await this.prisma.category.findUnique({
-        where: { id: parentId },
-      });
+    const categoryExists = await this.prisma.category.findFirst({
+      where: {
+        name,
+        type: CategoryTypes.PRODUCT,
+      },
+    });
 
-      if (!parentCategory) {
-        throw new NotFoundException('Parent category not found');
-      }
+    if (categoryExists) {
+      throw new ConflictException(
+        `A product category with this name: ${name} already exists`,
+      );
     }
 
     return this.prisma.category.create({
       data: {
         name,
-        parentId,
-        type: 'PRODUCT',
+        type: CategoryTypes.PRODUCT,
       },
     });
   }
@@ -201,7 +235,7 @@ export class ProductsService {
   async getAllCategories() {
     return await this.prisma.category.findMany({
       where: {
-        type: 'PRODUCT',
+        type: CategoryTypes.PRODUCT,
       },
       include: {
         parent: true,
@@ -251,9 +285,9 @@ export class ProductsService {
     const inventoryBatch = await this.prisma.product.findUnique({
       where: { id: productId },
       include: {
-        inventoryBatches: {
+        inventories: {
           include: {
-            inventoryBatch: true,
+            inventory: true,
           },
         },
       },
@@ -275,6 +309,83 @@ export class ProductsService {
 
     return {
       allProducts,
+    };
+  }
+
+  private mapProductToResponseDto(
+    product: Prisma.ProductGetPayload<{
+      include: {
+        category: true;
+        creatorDetails: true;
+        inventories: {
+          include: {
+            inventory: {
+              include: {
+                batches: true;
+                inventoryCategory: true;
+                inventorySubCategory: true;
+              };
+            };
+          };
+        };
+      };
+    }>,
+  ) {
+    const { inventories, category, ...rest } = product;
+    const { maximumInventoryBatchPrice, minimumInventoryBatchPrice } =
+      inventories
+        .map(({ inventory }) => {
+          const { batches } = inventory;
+          const batchPrices = batches
+            .filter(({ remainingQuantity }) => remainingQuantity > 0)
+            .map((batch) => batch.price);
+
+          return {
+            minimumInventoryBatchPrice: batchPrices.length
+              ? Math.min(...batchPrices)
+              : 0.0,
+            maximumInventoryBatchPrice: batchPrices.length
+              ? Math.max(...batchPrices)
+              : 0.0,
+          };
+        })
+        .reduce(
+          (prev, curr) => {
+            prev.minimumInventoryBatchPrice += curr.minimumInventoryBatchPrice;
+            prev.maximumInventoryBatchPrice += curr.maximumInventoryBatchPrice;
+            return prev;
+          },
+          {
+            minimumInventoryBatchPrice: 0,
+            maximumInventoryBatchPrice: 0,
+          },
+        );
+
+    const priceRange = `₦${minimumInventoryBatchPrice.toFixed(2)} - ₦${maximumInventoryBatchPrice.toFixed(2)}`;
+
+    return {
+      ...rest,
+      inventories: inventories.map(({ inventory }) => {
+        const { batches, ...rest } = inventory;
+
+        const totalRemainingQuantities = batches.reduce(
+          (sum, batch) => sum + batch.remainingQuantity,
+          0,
+        );
+
+        const totalInitialQuantities = batches.reduce(
+          (sum, batch) => sum + batch.numberOfStock,
+          0,
+        );
+
+        return {
+          ...rest,
+          totalRemainingQuantities,
+          totalInitialQuantities,
+        };
+      }),
+      category: plainToInstance(CategoryEntity, category),
+      priceRange,
     };
   }
 }

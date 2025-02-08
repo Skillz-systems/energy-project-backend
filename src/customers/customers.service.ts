@@ -6,101 +6,36 @@ import {
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { MESSAGES } from '../constants';
 import { PrismaService } from '../prisma/prisma.service';
-import { generateRandomPassword } from '../utils/generate-pwd';
-import { hashPassword } from '../utils/helpers.util';
-import { ActionEnum, Prisma, SubjectEnum, UserStatus } from '@prisma/client';
-import { ListUsersQueryDto } from '../users/dto/list-users.dto';
+import { Prisma, UserStatus } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { UserEntity } from '../users/entity/user.entity';
+import { ListCustomersQueryDto } from './dto/list-customers.dto';
+import { getLastNDaysDate } from '../utils/helpers.util';
 
 @Injectable()
 export class CustomersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createCustomer(id: string, createCustomerDto: CreateCustomerDto) {
-    const { longitude, latitude, ...rest } = createCustomerDto;
+  async createCustomer(
+    requestUserId: string,
+    createCustomerDto: CreateCustomerDto,
+  ) {
+    const { longitude, latitude, email, ...rest } = createCustomerDto;
 
-    const emailExists = await this.prisma.user.findFirst({
-      where: {
-        email: rest.email,
-      },
+    const existingCustomer = await this.prisma.customer.findFirst({
+      where: { email },
     });
 
-    if (emailExists) {
+    if (existingCustomer) {
       throw new BadRequestException(MESSAGES.EMAIL_EXISTS);
     }
 
-    const creator = await this.prisma.user.findUnique({
-      where: { id },
-      include: {
-        role: true,
-      },
-    });
-
-    const newPwd = generateRandomPassword(30);
-    const hashedPwd = await hashPassword(newPwd);
-
-    let role = await this.prisma.role.findFirst({
-      where: {
-        role: 'customerUser',
-      },
-    });
-
-    if (!role) {
-      role = await this.prisma.role.create({
-        data: {
-          role: 'customerUser',
-          created_by: creator.id,
-        },
-      });
-    }
-
-    const permissions = [
-      {
-        action: ActionEnum.read,
-        subject: SubjectEnum.Customers,
-      },
-      {
-        action: ActionEnum.write,
-        subject: SubjectEnum.Customers,
-      },
-    ];
-
-    const existingCustomerPermissions = await this.prisma.permission.findFirst({
-      where: {
-        AND: permissions,
-      },
-    });
-
-    if (!existingCustomerPermissions) {
-      await Promise.all(
-        permissions.map((permission) =>
-          this.prisma.permission.create({
-            data: {
-              ...permission,
-              roles: {
-                connect: {
-                  id: role.id,
-                },
-              },
-            },
-          }),
-        ),
-      );
-    }
-
-    await this.prisma.user.create({
+    await this.prisma.customer.create({
       data: {
+        email,
+        creatorId: requestUserId,
         ...(longitude && { longitude }),
         ...(latitude && { latitude }),
-        password: hashedPwd,
-        roleId: role.id,
-        customerDetails: {
-          create: {
-            createdBy: creator.role.role,
-            creatorId: creator.id,
-          },
-        },
         ...rest,
       },
     });
@@ -108,23 +43,23 @@ export class CustomersService {
     return { message: MESSAGES.CREATED };
   }
 
-  async userFilter(query: ListUsersQueryDto): Promise<Prisma.UserWhereInput> {
+  async customerFilter(
+    query: ListCustomersQueryDto,
+  ): Promise<Prisma.CustomerWhereInput> {
     const {
       search,
       firstname,
       lastname,
-      username,
       email,
       phone,
       location,
       status,
-      isBlocked,
-      roleId,
       createdAt,
       updatedAt,
+      isNew,
     } = query;
 
-    const filterConditions: Prisma.UserWhereInput = {
+    const filterConditions: Prisma.CustomerWhereInput = {
       AND: [
         search
           ? {
@@ -132,7 +67,6 @@ export class CustomersService {
                 { firstname: { contains: search, mode: 'insensitive' } },
                 { lastname: { contains: search, mode: 'insensitive' } },
                 { email: { contains: search, mode: 'insensitive' } },
-                { username: { contains: search, mode: 'insensitive' } },
               ],
             }
           : {},
@@ -142,17 +76,19 @@ export class CustomersService {
         lastname
           ? { lastname: { contains: lastname, mode: 'insensitive' } }
           : {},
-        username
-          ? { username: { contains: username, mode: 'insensitive' } }
-          : {},
         email ? { email: { contains: email, mode: 'insensitive' } } : {},
         phone ? { phone: { contains: phone, mode: 'insensitive' } } : {},
         location
           ? { location: { contains: location, mode: 'insensitive' } }
           : {},
         status ? { status } : {},
-        isBlocked !== undefined ? { isBlocked } : {},
-        roleId ? { roleId } : {},
+        isNew
+          ? {
+              createdAt: {
+                gte: getLastNDaysDate(7),
+              },
+            }
+          : {},
         createdAt ? { createdAt: new Date(createdAt) } : {},
         updatedAt ? { updatedAt: new Date(updatedAt) } : {},
       ],
@@ -161,10 +97,10 @@ export class CustomersService {
     return filterConditions;
   }
 
-  async getUsers(query: ListUsersQueryDto) {
+  async getCustomers(query: ListCustomersQueryDto) {
     const { page = 1, limit = 100, sortField, sortOrder } = query;
 
-    const filterConditions = await this.userFilter(query);
+    const filterConditions = await this.customerFilter(query);
 
     const pageNumber = parseInt(String(page), 10);
     const limitNumber = parseInt(String(limit), 10);
@@ -178,29 +114,18 @@ export class CustomersService {
         }
       : undefined;
 
-    const result = await this.prisma.user.findMany({
+    const result = await this.prisma.customer.findMany({
       skip,
       take,
       where: {
         ...filterConditions,
-        customerDetails: {
-          isNot: null,
-        },
       },
       orderBy,
-      include: {
-        customerDetails: true,
-        role: {
-          include: {
-            permissions: true,
-          },
-        },
-      },
     });
 
     const customers = plainToInstance(UserEntity, result);
 
-    const totalCount = await this.prisma.user.count({
+    const totalCount = await this.prisma.customer.count({
       where: filterConditions,
     });
 
@@ -213,39 +138,24 @@ export class CustomersService {
     };
   }
 
-  async fetchUser(id: string) {
-    const user = await this.prisma.user.findUnique({
+  async getCustomer(id: string) {
+    const customer = await this.prisma.customer.findUnique({
       where: {
         id,
-        customerDetails: {
-          isNot: null,
-        },
-      },
-      include: {
-        role: {
-          include: {
-            permissions: true,
-          },
-        },
       },
     });
 
-    if (!user) {
+    if (!customer) {
       throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
     }
 
-    const serialisedData = plainToInstance(UserEntity, user);
-
-    return serialisedData;
+    return customer;
   }
 
-  async deleteUser(id: string) {
-    const user = await this.prisma.user.findUnique({
+  async deleteCustomer(id: string) {
+    const user = await this.prisma.customer.findUnique({
       where: {
         id,
-        customerDetails: {
-          isNot: null,
-        },
       },
     });
 
@@ -254,9 +164,6 @@ export class CustomersService {
     }
 
     await this.prisma.customer.delete({
-      where: { userId: id },
-    });
-    await this.prisma.user.delete({
       where: { id },
     });
 
@@ -266,46 +173,27 @@ export class CustomersService {
   }
 
   async getCustomerStats() {
-    const now = new Date();
-    const sevenDaysAgo = new Date(now);
-    sevenDaysAgo.setDate(now.getDate() - 7);
-
-    const barredCustomerCount = await this.prisma.user.count({
+    const barredCustomerCount = await this.prisma.customer.count({
       where: {
         status: UserStatus.barred,
-        customerDetails: {
-          isNot: null,
-        },
       },
     });
 
-    const newCustomerCount = await this.prisma.user.count({
+    const newCustomerCount = await this.prisma.customer.count({
       where: {
-        customerDetails: {
-          isNot: null,
-        },
         createdAt: {
-          gte: sevenDaysAgo,
+          gte: getLastNDaysDate(7),
         },
       },
     });
 
-    const activeCustomerCount = await this.prisma.user.count({
+    const activeCustomerCount = await this.prisma.customer.count({
       where: {
         status: UserStatus.active,
-        customerDetails: {
-          isNot: null,
-        },
       },
     });
 
-    const totalCustomerCount = await this.prisma.user.count({
-      where: {
-        customerDetails: {
-          isNot: null,
-        },
-      },
-    });
+    const totalCustomerCount = await this.prisma.customer.count();
 
     return {
       barredCustomerCount,
@@ -318,7 +206,7 @@ export class CustomersService {
   async getCustomerTabs(customerId: string) {
     const customer = await this.prisma.customer.findUnique({
       where: {
-        userId: customerId,
+        id: customerId,
       },
     });
 

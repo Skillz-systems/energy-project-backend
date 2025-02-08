@@ -54,22 +54,30 @@ describe('CustomersService', () => {
         ...fakeData,
         role: { id: 'role-id', role: 'customerUser' },
       });
-      (prisma.role.findFirst as jest.Mock).mockResolvedValue({
+      (prisma.role.upsert as jest.Mock).mockResolvedValue({
         id: 'role-id',
         role: 'customerUser',
       });
-      (prisma.permission.findFirst as jest.Mock).mockResolvedValue([
-        {
-          id: '66f4237486d300545d3b1f10',
+      (prisma.permission.findFirst as jest.Mock)
+        .mockImplementationOnce(() => Promise.resolve(null)) // First call (for read permission)
+        .mockImplementationOnce(() => Promise.resolve(null));
+
+      (prisma.permission.create as jest.Mock)
+        .mockResolvedValueOnce({
+          id: 'permission-read-id',
           action: ActionEnum.read,
           subject: SubjectEnum.Customers,
-        },
-        {
-          id: '66f42a3166aaf6fbb2a643bf',
+        })
+        .mockResolvedValueOnce({
+          id: 'permission-write-id',
           action: ActionEnum.write,
           subject: SubjectEnum.Customers,
-        },
-      ]);
+        });
+
+      (prisma.role.update as jest.Mock).mockResolvedValue({
+        id: 'role-id',
+        role: 'customerUser',
+      });
 
       (prisma.user.create as jest.Mock).mockResolvedValue({
         id: 'user-id',
@@ -113,7 +121,7 @@ describe('CustomersService', () => {
 
       const query: ListUsersQueryDto = { page: '1', limit: '10' };
 
-      const result = await service.getUsers(query);
+      const result = await service.getCustomers(query);
       expect(result).toEqual(paginatedUsers);
       expect(prisma.user.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -130,7 +138,7 @@ describe('CustomersService', () => {
         mockUsersResponseData[0],
       );
 
-      const result = await service.fetchUser('66e9fe02014ca14746800d33');
+      const result = await service.getCustomer('66e9fe02014ca14746800d33');
 
       expect(result).toEqual(
         plainToInstance(UserEntity, mockUsersResponseData[0]),
@@ -149,7 +157,7 @@ describe('CustomersService', () => {
     it('should throw NotFoundException if customer does not exist', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.fetchUser('nonexistent-id')).rejects.toThrow(
+      await expect(service.getCustomer('nonexistent-id')).rejects.toThrow(
         new NotFoundException(MESSAGES.USER_NOT_FOUND),
       );
     });
@@ -163,7 +171,7 @@ describe('CustomersService', () => {
       mockPrismaService.customer.delete.mockResolvedValue({} as any);
       mockPrismaService.user.delete.mockResolvedValue({} as any);
 
-      const result = await service.deleteUser('66e9fe02014ca14746800d33');
+      const result = await service.deleteCustomer('66e9fe02014ca14746800d33');
 
       expect(result).toEqual({ message: MESSAGES.DELETED });
       expect(prisma.user.delete).toHaveBeenCalledWith({
@@ -174,14 +182,14 @@ describe('CustomersService', () => {
     it('should throw NotFoundException if customer does not exist', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.deleteUser('nonexistent-id')).rejects.toThrow(
+      await expect(service.deleteCustomer('nonexistent-id')).rejects.toThrow(
         new NotFoundException(MESSAGES.USER_NOT_FOUND),
       );
     });
   });
 
   describe('Fetch Customer Tabs', () => {
-        const customerId = '672a7ded6e6ef96f18f3646c';
+    const customerId = '672a7ded6e6ef96f18f3646c';
 
     it('should return customer Tabs if ID valid', async () => {
       mockPrismaService.customer.findUnique.mockResolvedValue({

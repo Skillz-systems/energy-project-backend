@@ -1,0 +1,51 @@
+model Contract {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  initialAmountPaid Float @default(0)
+
+  nextOfKinFullName     String
+  nextOfKinRelationship String
+  nextOfKinPhoneNumber  String
+  nextOfKinHomeAddress  String
+  nextOfKinEmail        String?
+  nextOfKinDateOfBirth  DateTime?
+  nextOfKinNationality  String?
+
+  guarantorFullName         String
+  guarantorPhoneNumber      String
+  guarantorHomeAddress      String
+  guarantorEmail            String?
+  guarantorIdType           IDType
+  guarantorIdNumber         String
+  guarantorIdIssuingCountry String
+  guarantorIdIssueDate      DateTime?
+  guarantorIdExpirationDate DateTime?
+  guarantorNationality      String?
+  guarantorDateOfBirth      DateTime?
+
+  idType         IDType
+  idNumber       String
+  issuingCountry String
+  issueDate      DateTime?
+  expirationDate DateTime?
+  fullNameAsOnID String
+  addressAsOnID  String?
+
+  signedContractUrl String?
+  signedAt          DateTime?
+
+  sale Sales[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("contracts")
+}
+
+enum IDType {
+  Nin
+  Passport
+  Driver_License
+  Voter_ID
+  Social_Security_Number
+}

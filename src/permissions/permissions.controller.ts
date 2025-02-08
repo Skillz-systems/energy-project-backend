@@ -9,7 +9,7 @@ import { ActionEnum, SubjectEnum } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { RolesAndPermissionsGuard } from '../auth/guards/roles.guard';
 
-@ApiTags('permissions')
+@ApiTags('Permissions')
 @Controller('permissions')
 export class PermissionsController {
   constructor(private readonly permissionsService: PermissionsService) {}

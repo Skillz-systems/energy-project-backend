@@ -12,6 +12,7 @@ export const MESSAGES = {
 
   // Error Messages
   EMAIL_EXISTS: 'Email already exists',
+  DEVICE_EXISTS: 'Device with serial number already exist',
   USERNAME_IN_USE: 'Username already in use',
   USERNAME_INVALID: 'Invalid username',
   INVALID_CREDENTIALS: 'Invalid credentials provided',
@@ -19,6 +20,7 @@ export const MESSAGES = {
   PWD_SIMILAR_TO_OLD: 'New password should not be the same as old password',
   USER_NOT_FOUND: 'User not found',
   BATCH_NOT_FOUND: 'Batch not found',
+  DEVICE_NOT_FOUND: 'Device not found',
   INVALID_TOKEN: 'Invalid or expired token',
   NOT_PERMITTED:
     "You don't have sufficient permissions to perform the necessary action",
@@ -27,9 +29,9 @@ export const MESSAGES = {
   PERMISSIONS_METADATA_INVALID: 'Permissions metadata is invalid or missing',
   EMPTY_OBJECT: 'At least one field must be provided to update',
 
-
- PRODUCT_NOT_FOUND: 'Product not found',
- AGENT_NOT_FOUND: 'Agent not found',
+  PRODUCT_NOT_FOUND: 'Product not found',
+  INVENTORY_NOT_FOUND: 'Inventory not found',
+  AGENT_NOT_FOUND: 'Agent not found',
 
   /**
    *

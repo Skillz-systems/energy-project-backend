@@ -34,26 +34,27 @@ import { CreateInventoryDto } from './dto/create-inventory.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FetchInventoryQueryDto } from './dto/fetch-inventory.dto';
 import { CreateCategoryArrayDto } from './dto/create-category.dto';
+import { CreateInventoryBatchDto } from './dto/create-inventory-batch.dto';
 
 @SkipThrottle()
 @ApiTags('Inventory')
 @Controller('inventory')
+@ApiBearerAuth('access_token')
+@ApiHeader({
+  name: 'Authorization',
+  description: 'JWT token used for authentication',
+  required: true,
+  schema: {
+    type: 'string',
+    example: 'Bearer <token>',
+  },
+})
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
   @RolesAndPermissions({
     permissions: [`${ActionEnum.manage}:${SubjectEnum.Inventory}`],
-  })
-  @ApiBearerAuth('access_token')
-  @ApiHeader({
-    name: 'Authorization',
-    description: 'JWT token used for authentication',
-    required: true,
-    schema: {
-      type: 'string',
-      example: 'Bearer <token>',
-    },
   })
   @ApiBody({
     type: CreateInventoryDto,
@@ -83,15 +84,22 @@ export class InventoryController {
   @RolesAndPermissions({
     permissions: [`${ActionEnum.manage}:${SubjectEnum.Inventory}`],
   })
-  @ApiBearerAuth('access_token')
-  @ApiHeader({
-    name: 'Authorization',
-    description: 'JWT token used for authentication',
-    required: true,
-    schema: {
-      type: 'string',
-      example: 'Bearer <token>',
-    },
+  @ApiBody({
+    type: CreateInventoryBatchDto,
+    description: 'Json structure for request payload',
+  })
+  @ApiBadRequestResponse({})
+  @HttpCode(HttpStatus.CREATED)
+  @Post('batch/create')
+  async createInventoryBatch(
+    @Body() createInventoryDto: CreateInventoryBatchDto,
+  ) {
+    return await this.inventoryService.createInventoryBatch(createInventoryDto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Inventory}`],
   })
   @Get('')
   @ApiOkResponse({
@@ -109,46 +117,62 @@ export class InventoryController {
   @RolesAndPermissions({
     permissions: [`${ActionEnum.manage}:${SubjectEnum.Inventory}`],
   })
-  @ApiBearerAuth('access_token')
-  @ApiHeader({
-    name: 'Authorization',
-    description: 'JWT token used for authentication',
-    required: true,
-    schema: {
-      type: 'string',
-      example: 'Bearer <token>',
-    },
+  @Get('stats')
+  @ApiOkResponse({
+    description: 'Fetch Inventory Statistics',
+    isArray: true,
   })
-  @ApiParam({
-    name: 'id',
-    description: 'InventoryBatch id to fetch details',
-  })
-  @Get('batch/:id')
-  @ApiOperation({
-    summary: 'Fetch Inventory Batch details',
-    description:
-      'This endpoint allows a permitted user fetch an inventory batch details.',
-  })
-  @ApiBearerAuth('access_token')
-  @ApiOkResponse({})
+  @ApiBadRequestResponse({})
   @HttpCode(HttpStatus.OK)
-  async getInventoryBatchDetails(@Param('id') id: string) {
-    return await this.inventoryService.fetchInventoryBatchDetails(id);
+  async getInventoryStats() {
+    return await this.inventoryService.getInventoryStats();
   }
 
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
   @RolesAndPermissions({
     permissions: [`${ActionEnum.manage}:${SubjectEnum.Inventory}`],
   })
+  @ApiParam({
+    name: 'id',
+    description: 'Inventory id to fetch details',
+  })
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Fetch Inventory details',
+    description:
+      'This endpoint allows a permitted user fetch an inventory batch details.',
+  })
   @ApiBearerAuth('access_token')
-  @ApiHeader({
-    name: 'Authorization',
-    description: 'JWT token used for authentication',
-    required: true,
-    schema: {
-      type: 'string',
-      example: 'Bearer <token>',
-    },
+  @ApiOkResponse({})
+  @HttpCode(HttpStatus.OK)
+  async getInventoryDetails(@Param('id') inventoryId: string) {
+    return await this.inventoryService.getInventory(inventoryId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Inventory}`],
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Inventory Batch Id to fetch details',
+  })
+  @Get('/batch/:id')
+  @ApiOperation({
+    summary: 'Fetch Inventory details',
+    description:
+      'This endpoint allows a permitted user fetch an inventory batch details.',
+  })
+  @ApiBearerAuth('access_token')
+  @ApiOkResponse({})
+  @HttpCode(HttpStatus.OK)
+  async getInventoryBatchDetails(@Param('id') inventoryId: string) {
+    return await this.inventoryService.getInventoryBatch(inventoryId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Inventory}`],
   })
   @ApiBearerAuth('access_token')
   @ApiBody({
@@ -175,17 +199,7 @@ export class InventoryController {
   @RolesAndPermissions({
     permissions: [`${ActionEnum.manage}:${SubjectEnum.Inventory}`],
   })
-  @ApiBearerAuth('access_token')
-  @ApiHeader({
-    name: 'Authorization',
-    description: 'JWT token used for authentication',
-    required: true,
-    schema: {
-      type: 'string',
-      example: 'Bearer <token>',
-    },
-  })
-  @Get('categories')
+  @Get('categories/all')
   @ApiOkResponse({
     description: 'Fetch all inventory categories',
     isArray: true,
@@ -200,44 +214,9 @@ export class InventoryController {
   @RolesAndPermissions({
     permissions: [`${ActionEnum.manage}:${SubjectEnum.Inventory}`],
   })
-  @ApiBearerAuth('access_token')
-  @ApiHeader({
-    name: 'Authorization',
-    description: 'JWT token used for authentication',
-    required: true,
-    schema: {
-      type: 'string',
-      example: 'Bearer <token>',
-    },
-  })
-  @Get('stats')
-  @ApiOkResponse({
-    description: 'Fetch Inventory Statistics',
-    isArray: true,
-  })
-  @ApiBadRequestResponse({})
-  @HttpCode(HttpStatus.OK)
-  async getInventoryStats() {
-    return await this.inventoryService.getInventoryStats();
-  }
-
-  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
-  @RolesAndPermissions({
-    permissions: [`${ActionEnum.manage}:${SubjectEnum.Inventory}`],
-  })
-  @ApiBearerAuth('access_token')
-  @ApiHeader({
-    name: 'Authorization',
-    description: 'JWT token used for authentication',
-    required: true,
-    schema: {
-      type: 'string',
-      example: 'Bearer <token>',
-    },
-  })
   @ApiParam({
     name: 'id',
-    description: 'InventoryBatch id to fetch tabs',
+    description: 'inventory id to fetch tabs',
   })
   @ApiOkResponse({
     description: 'Fetch Inventory Tabs',
@@ -246,7 +225,7 @@ export class InventoryController {
   @ApiBadRequestResponse({})
   @HttpCode(HttpStatus.OK)
   @Get(':id/tabs')
-  async getInventoryTabs(@Param('id') inventoryBatchId: string) {
-    return this.inventoryService.getInventoryTabs(inventoryBatchId);
+  async getInventoryTabs(@Param('id') inventoryId: string) {
+    return this.inventoryService.getInventoryTabs(inventoryId);
   }
 }

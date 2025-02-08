@@ -1,5 +1,54 @@
-import { IsString, IsOptional, IsNotEmpty, ValidateIf } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNotEmpty,
+  ValidateIf,
+  IsNumber,
+  Min,
+  ValidateNested,
+  IsArray,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsObjectId } from 'class-validator-mongo-object-id';
+import { Transform, Type } from 'class-transformer';
+import { BadRequestException } from '@nestjs/common';
+
+export class ProductInventoryDetailsDto {
+  @ApiProperty({
+    description: 'Inventory ID.',
+    example: '507f191e810c19729de860ea',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsObjectId({
+    message: 'Invalid Inventory Id',
+  })
+  @Transform(({ value }) => {
+    // Handle both string and object cases
+    console.log({value})
+    if (typeof value === 'object' && value.inventoryId) {
+      return value.inventoryId;
+    }
+    return value;
+  })
+  inventoryId: string;
+
+  @ApiProperty({
+    description: 'Quantity',
+    example: '100',
+  })
+  @IsNumber()
+  @Transform(({ value }) => {
+    const parsedValue = Number(value);
+    if (isNaN(parsedValue)) {
+      throw new BadRequestException('Quantity must be a valid number.');
+    }
+    return parsedValue;
+  })
+  @Min(1)
+  @IsNotEmpty()
+  quantity: number;
+}
 
 export class CreateProductDto {
   @IsString()
@@ -12,26 +61,13 @@ export class CreateProductDto {
   @ApiPropertyOptional({ description: 'Optional description of the product' })
   description?: string;
 
-  // @IsOptional()
-  // @IsString()
-  // @ApiPropertyOptional({
-  //   description: 'Optional URL for the product image',
-  //   type: 'file',
-  // })
-  // productImage?: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @ApiProperty({ description: 'Price of the product' })
-  price: string;
-
   @IsOptional()
   @IsString()
   @ApiPropertyOptional({
     default: 'NGN',
     description: 'Currency of the product',
   })
-  currency?: string;
+  currency: string;
 
   @IsString()
   @IsNotEmpty()
@@ -39,24 +75,45 @@ export class CreateProductDto {
     description:
       'Payment modes for the product. The distinct payment modes should be concatenated together and separated by comma',
   })
-  paymentModes?: string;
+  paymentModes: string;
 
   @IsString()
   @IsNotEmpty()
+  @IsObjectId({
+    message: 'Invalid Product Category',
+  })
   @ApiProperty({ description: 'Product category Id of the product' })
   categoryId: string;
 
-  @ValidateIf((obj) => typeof obj.inventoryBatchId === 'string')
-  // @IsString()
-  @IsNotEmpty()
   @ApiProperty({
-    description:
-      'The Inventory IDs associated with the product. Can be a single string or an array of inventoryBatchId strings.',
-    oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
-    example: '12345,67890', // Example of string format
+    description: 'An array of inventory details for this product.',
+    type: ProductInventoryDetailsDto,
+    required: true,
+    isArray: true,
+    default: [
+      {
+        inventoryId: '6745ba5dfe24f6583d4e5d3b',
+        quantity: 100,
+      },
+    ],
   })
-  inventoryBatchId: string | string[];
+  @IsArray()
+  @IsNotEmpty()
+  @Transform(({ value }) => {
+    try {
+      const parsedValue = typeof value === 'string' ? JSON.parse(value) : value;
+      if (!Array.isArray(parsedValue)) {
+        throw new Error('Value must be an array');
+      }
+      return parsedValue;
+    } catch (error) {
+      throw new BadRequestException('Invalid format for inventories array');
+    }
+  })
+  // @ValidateNested({ each: true })
+  @Type(() => ProductInventoryDetailsDto)
+  inventories: ProductInventoryDetailsDto[];
 
-  @ApiProperty({ type: 'file' })
+  @ApiProperty({ type: 'file', description: 'Product image file' })
   productImage: Express.Multer.File;
 }

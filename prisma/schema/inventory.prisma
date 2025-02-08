@@ -1,7 +1,15 @@
 model Inventory {
-  id               String @id @default(auto()) @map("_id") @db.ObjectId
-  name             String
-  manufacturerName String
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  name              String
+  manufacturerName  String
+  sku               String?
+  image             String?
+  dateOfManufacture String?
+
+  status InventoryStatus @default(IN_STOCK)
+  class  InventoryClass
+
+  products ProductInventory[]
 
   inventoryCategoryId String?   @unique @db.ObjectId
   inventoryCategory   Category? @relation(name: "InventoryToCategory", fields: [inventoryCategoryId], references: [id])
@@ -19,30 +27,24 @@ model Inventory {
 }
 
 model InventoryBatch {
-  id                String  @id @default(auto()) @map("_id") @db.ObjectId
-  name              String
-  dateOfManufacture String?
-  sku               String?
-  image             String?
-  batchNumber       Int // Unique identifier for each batch of a product
-  costOfItem        Float? // Price specific to this batch
-  price             Float // Price specific to this batch
-  numberOfStock     Int // Original quantity in this batch
-  remainingQuantity Int // Current remaining quantity in this batch
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  status InventoryStatus @default(IN_STOCK)
-  class  InventoryClass
+  costOfItem  Float?
+  price       Float
+  batchNumber Int
+
+  numberOfStock     Int // Original quantity in this batch.
+  remainingQuantity Int // Current remaining quantity in this batch
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  products ProductInventoryBatch[]
-
   inventoryId String     @db.ObjectId
   inventory   Inventory? @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
 
-  @@unique([inventoryId, batchNumber]) // Ensures batchNumber is unique within a product's inventory
+  salesBatchAlocation BatchAlocation[]
+
   @@map("inventory_batches")
 }
 

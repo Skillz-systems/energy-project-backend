@@ -20,7 +20,15 @@ export class CreateAgentDto {
 
   @ApiProperty({ example: '1234 Street', description: 'Address of the agent' })
   @IsString()
-  address: string;
+  location: string;
+
+  @ApiProperty({ example: '1234 Street', description: 'Longitude of the location of the  agent' })
+  @IsString()
+  longitude: string;
+
+  @ApiProperty({ example: '1234 Street', description: 'Latitude of the location of the  agent' })
+  @IsString()
+  latitude: string;
 
   @ApiProperty({ example: true, description: 'Email verification status', default: false })
   @IsBoolean()

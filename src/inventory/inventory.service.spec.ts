@@ -165,9 +165,7 @@ describe('InventoryService', () => {
         mockInventoryBatchResponse,
       );
 
-      const result = await service.fetchInventoryBatchDetails(
-        mockInventoryBatchResponse.id,
-      );
+      const result = await service.getInventory(mockInventoryBatchResponse.id);
 
       expect(result).toHaveProperty('id');
       expect(mockPrismaService.inventoryBatch.findUnique).toHaveBeenCalled();
@@ -176,9 +174,9 @@ describe('InventoryService', () => {
     it('should throw NotFoundException if Inventory Batch Details does not exist', async () => {
       mockPrismaService.inventoryBatch.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.fetchInventoryBatchDetails('nonexistent-id'),
-      ).rejects.toThrow(new NotFoundException(MESSAGES.BATCH_NOT_FOUND));
+      await expect(service.getInventory('nonexistent-id')).rejects.toThrow(
+        new NotFoundException(MESSAGES.BATCH_NOT_FOUND),
+      );
     });
   });
 

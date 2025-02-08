@@ -1,0 +1,24 @@
+model Payment {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  transactionRef  String        @unique
+  amount          Float
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentResponse Json?         @db.Json
+  paymentDate     DateTime      @default(now())
+
+  saleId String @db.ObjectId
+  sale   Sales  @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}

@@ -23,6 +23,9 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
+      // forbidNonWhitelisted: true,
+      // transform: true,
+      // transformOptions: { enableImplicitConversion: true },
     }),
   );
 
@@ -45,11 +48,19 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
+
+  // Sort the paths in ascending order
+  document.paths = Object.keys(document.paths)
+    .sort()
+    .reduce((sortedPaths, key) => {
+      sortedPaths[key] = document.paths[key];
+      return sortedPaths;
+    }, {});
+
   SwaggerModule.setup('api-docs', app, document);
 
   app.useGlobalFilters();
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
-  
 
   // Enable validation globally
   app.useGlobalPipes(new ValidationPipe());

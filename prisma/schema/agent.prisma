@@ -1,8 +1,16 @@
 model Agent {
-    id String @id @default(auto()) @map("_id") @db.ObjectId
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
-    customers Customer[] 
-   
-    user   User   @relation(fields: [userId], references: [id])
-    userId String @unique @db.ObjectId
+  customers Customer[]
+
+  agentId Int
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @unique @db.ObjectId
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@map("agents")
 }

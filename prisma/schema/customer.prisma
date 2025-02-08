@@ -1,22 +1,35 @@
 model Customer {
-    id        String             @id @default(auto()) @map("_id") @db.ObjectId
-    type      CustomerType       @default(lead) // Defaults to LEAD until purchase
-    createdBy String
-    products  CustomerProducts[]
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
-    creatorId      String? @db.ObjectId
-    creatorDetails User?   @relation(fields: [creatorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  firstname   String
+  lastname    String
+  phone       String
+  email       String      @unique
+  addressType AddressType
+  location    String?
+  longitude   String?
+  latitude    String?
+  status      UserStatus  @default(active)
 
-    agentId String? @db.ObjectId
-    agent   Agent?  @relation(fields: [agentId], references: [id])
+  type     CustomerType       @default(lead)
+  products CustomerProducts[]
 
-    user   User   @relation("CustomerDetails", fields: [userId], references: [id])
-    userId String @unique @db.ObjectId
+  sales Sales[]
 
-    @@map("customer")
+  creatorId      String? @db.ObjectId
+  creatorDetails User?   @relation(fields: [creatorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  agentId String? @db.ObjectId
+  agent   Agent?  @relation(fields: [agentId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@map("customers")
 }
 
 enum CustomerType {
-    lead
-    purchase
+  lead
+  purchase
 }

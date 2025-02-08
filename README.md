@@ -45,8 +45,8 @@ Make sure you have the following installed on your machine:
 2. **Install Dependencies**
 
 ```bash
- pnpm i
- npx prisma generate
+  pnpm i
+  npx prisma generate
 ```
 
 3. **Configure MongoDB**

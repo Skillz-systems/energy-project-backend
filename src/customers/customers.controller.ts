@@ -30,7 +30,7 @@ import {
 } from '@nestjs/swagger';
 import { GetUser } from '../auth/decorators/getUser';
 import { UserEntity } from '../users/entity/user.entity';
-import { ListUsersQueryDto } from '../users/dto/list-users.dto';
+import { ListCustomersQueryDto } from './dto/list-customers.dto';
 
 @SkipThrottle()
 @ApiTags('Customers')
@@ -64,17 +64,17 @@ export class CustomersController {
   @Post('create')
   async create(
     @Body() createCustomersDto: CreateCustomerDto,
-    @GetUser('id') id: string,
+    @GetUser('id') requestUserId: string,
   ) {
-    return await this.customersService.createCustomer(id, createCustomersDto);
+    return await this.customersService.createCustomer(
+      requestUserId,
+      createCustomersDto,
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
   @RolesAndPermissions({
-    permissions: [
-      `${ActionEnum.manage}:${SubjectEnum.Agents}`,
-      `${ActionEnum.manage}:${SubjectEnum.Customers}`,
-    ],
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Customers}`],
   })
   @Get()
   @ApiBearerAuth('access_token')
@@ -84,7 +84,7 @@ export class CustomersController {
     isArray: true,
   })
   @ApiBadRequestResponse({})
-  @ApiExtraModels(ListUsersQueryDto)
+  @ApiExtraModels(ListCustomersQueryDto)
   @ApiHeader({
     name: 'Authorization',
     description: 'JWT token used for authentication',
@@ -95,32 +95,32 @@ export class CustomersController {
     },
   })
   @HttpCode(HttpStatus.OK)
-  async listCustomers(@Query() query: ListUsersQueryDto) {
-    return await this.customersService.getUsers(query);
+  async listCustomers(@Query() query: ListCustomersQueryDto) {
+    return await this.customersService.getCustomers(query);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @RolesAndPermissions({
-    permissions: [`${ActionEnum.read}:${SubjectEnum.Customers}`],
-  })
-  @Get('/single')
-  @ApiOperation({
-    summary: 'Fetch customer details',
-    description:
-      'This endpoint allows an authenticated customer to fetch their details.',
-  })
-  @ApiBearerAuth('access_token')
-  @ApiOkResponse({
-    type: UserEntity,
-  })
-  async fetchCustomer(@GetUser('id') id: string): Promise<User> {
-    return new UserEntity(await this.customersService.fetchUser(id));
-  }
+  // @UseGuards(JwtAuthGuard)
+  // @RolesAndPermissions({
+  //   permissions: [`${ActionEnum.read}:${SubjectEnum.Customers}`],
+  // })
+  // @Get('/single')
+  // @ApiOperation({
+  //   summary: 'Fetch customer details',
+  //   description:
+  //     'This endpoint allows an authenticated customer to fetch their details.',
+  // })
+  // @ApiBearerAuth('access_token')
+  // @ApiOkResponse({
+  //   type: UserEntity,
+  // })
+  // async fetchCustomer(@GetUser('id') id: string): Promise<User> {
+  //   return new UserEntity(await this.customersService.getCustomer(id));
+  // }
 
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
   @RolesAndPermissions({
     permissions: [
-      `${ActionEnum.manage}:${SubjectEnum.Agents}`,
+      // `${ActionEnum.manage}:${SubjectEnum.Agents}`,
       `${ActionEnum.manage}:${SubjectEnum.Customers}`,
     ],
   })
@@ -138,8 +138,8 @@ export class CustomersController {
   @ApiOkResponse({
     type: UserEntity,
   })
-  async superUserFetchUser(@Param('id') id: string): Promise<User> {
-    return new UserEntity(await this.customersService.fetchUser(id));
+  async fetchUser(@Param('id') id: string): Promise<User> {
+    return new UserEntity(await this.customersService.getCustomer(id));
   }
 
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
@@ -160,7 +160,7 @@ export class CustomersController {
   })
   @Delete(':id')
   async deleteUser(@Param('id') id: string) {
-    return await this.customersService.deleteUser(id);
+    return await this.customersService.deleteCustomer(id);
   }
 
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)

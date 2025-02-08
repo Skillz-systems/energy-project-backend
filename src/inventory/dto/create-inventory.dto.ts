@@ -8,6 +8,7 @@ import {
   IsString,
   IsEnum,
   IsNumber,
+  Min,
 } from 'class-validator';
 
 export class CreateInventoryDto {
@@ -93,8 +94,9 @@ export class CreateInventoryDto {
     }
     return parsedValue;
   })
+  @Min(1)
   @IsNotEmpty()
-  numberOfStock: string;
+  numberOfStock: number;
 
   @ApiProperty({
     description: 'Category Id',

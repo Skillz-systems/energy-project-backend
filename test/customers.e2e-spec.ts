@@ -59,22 +59,30 @@ describe('CustomersController (e2e)', () => {
         ...fakeData,
         role: { id: 'role-id', role: 'customerUser' },
       });
-      (mockPrismaService.role.findFirst as jest.Mock).mockResolvedValue({
+      (mockPrismaService.role.upsert as jest.Mock).mockResolvedValue({
         id: 'role-id',
         role: 'customerUser',
       });
-      (mockPrismaService.permission.findFirst as jest.Mock).mockResolvedValue([
-        {
-          id: '66f4237486d300545d3b1f10',
+      (mockPrismaService.permission.findFirst as jest.Mock)
+        .mockImplementationOnce(() => Promise.resolve(null)) // First call (for read permission)
+        .mockImplementationOnce(() => Promise.resolve(null));
+
+      (mockPrismaService.permission.create as jest.Mock)
+        .mockResolvedValueOnce({
+          id: 'permission-read-id',
           action: ActionEnum.read,
           subject: SubjectEnum.Customers,
-        },
-        {
-          id: '66f42a3166aaf6fbb2a643bf',
+        })
+        .mockResolvedValueOnce({
+          id: 'permission-write-id',
           action: ActionEnum.write,
           subject: SubjectEnum.Customers,
-        },
-      ]);
+        });
+
+      (mockPrismaService.role.update as jest.Mock).mockResolvedValue({
+        id: 'role-id',
+        role: 'customerUser',
+      });
 
       (mockPrismaService.user.create as jest.Mock).mockResolvedValue({
         id: 'user-id',

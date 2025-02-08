@@ -1,79 +1,124 @@
-name: energy-project-backend
-
+name: energy-project-backend 
 on:
   push:
     # branches:
     #   - main
-  # pull_request:
-  #   branches:
-  #     - dev
-  #   types: [closed]
-
+  pull_request:
+    branches:
+      - dev
+    types: [closed]
 jobs:
-  deploy-test:
-    runs-on: ubuntu-latest
-
-    services:
-      mongodb:
-        image: mongo:4.4
-        ports:
-          - 27017:27017
-        options: >-
-          --health-cmd "mongo --eval 'db.runCommand({ ping: 1 })'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm install
+  # deploy-test:
+  #   runs-on: ubuntu-latest
+ 
+  #   services:
+  #     mongodb:
+  #       image: mongo:4.4
+  #       ports:
+  #         - 27017:27017
+  #       options: >-
+  #         --health-cmd "mongo --eval 'db.runCommand({ ping: 1 })'"
+  #         --health-interval 10s
+  #         --health-timeout 5s
+  #         --health-retries 5
+ 
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v2
+ 
+  #     - name: Set up Node.js
+  #       uses: actions/setup-node@v2
+  #       with:
+  #         node-version: '20'
+ 
+  #     - name: Install dependencies
+  #       run: npm install
         
-      - name: rename env.example to .env
-        run: mv .env.example .env
-
-      - name: Run tests
-        env:
-          MONGO_URL: mongodb://localhost:27017/test_database
-        run: npm run test
-
-
+  #     - name: rename env.example to .env
+  #       run: mv .env.example .env
+ 
+  #     - name: Run tests
+  #       env:
+  #         MONGO_URL: mongodb://localhost:27017/test_database
+  #       run: npm run test
+ 
+ 
   deploy-dev:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-
+ 
       - name: Set up Node.js
         uses: actions/setup-node@v2
         with:
           node-version: '20'
-
+ 
       - name: Install dependencies
         run: npm install
-
+ 
       - name: Run build
         run: npm run build
-      - name: Update apt repositories
-        run: sudo apt update
-
+ 
       - name: rename env.example to .env
         run: mv .env.example .env
-
+ 
+      - name: Replace environment variables in .env
+        run: |
+          sed -i -e "s|DATABASE_URL=forge|DATABASE_URL=$(echo '${{ secrets.DATABASE_URL }}' | sed 's|&|\\&|g')|" .env
+          sed -i -e "s|ALLOWED_ORIGIN=.*|DB_PORT=${{ secrets.DB_PORT }}|" .env
+          sed -i -e "s|PORT=.*|PORT=${{ secrets.PORT }}|" .env
+          sed -i -e "s|APP_NAME=.*|APP_NAME='${{ secrets.APP_NAME }}'|" .env
+          sed -i -e "s|CLIENT_URL=.*|CLIENT_URL=${{ secrets.CLIENT_URL }}|" .env
+          sed -i -e "s|JWT_SECRET_KEY=.*|JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}|" .env
+          sed -i -e "s|EMAIL_USER=.*|EMAIL_USER=${{ secrets.EMAIL_USER }}|" .env
+          sed -i -e "s|EMAIL_PWD=.*|EMAIL_PWD='${{ secrets.EMAIL_PWD }}'|" .env
+          sed -i -e "s|EMAIL_PORT=.*|EMAIL_PORT=${{ secrets.EMAIL_PORT }}|" .env
+          sed -i -e "s|EMAIL_HOST=.*|EMAIL_HOST=${{ secrets.EMAIL_HOST }}|" .env
+          sed -i -e "s|MAIL_FROM=.*|MAIL_FROM=${{ secrets.MAIL_FROM }}|" .env
+          sed -i -e "s|MONGO_PORT=.*|MONGO_PORT=${{ secrets.MONGO_PORT }}|" .env
+          sed -i -e "s|CLOUDINARY_API_KEY=.*|CLOUDINARY_API_KEY='${{ secrets.CLOUDINARY_API_KEY }}'|" .env
+          sed -i -e "s|CLOUDINARY_API_SECRET=.*|CLOUDINARY_API_SECRET='${{ secrets.CLOUDINARY_API_SECRET }}'|" .env
+          sed -i -e "s|CLOUDINARY_CLOUD_NAME=.*|CLOUDINARY_CLOUD_NAME='${{ secrets.CLOUDINARY_CLOUD_NAME }}'|" .env
+          sed -i -e "s|FLW_SECRET_KEY=.*|FLW_SECRET_KEY='${{ secrets.FLW_SECRET_KEY_TEST }}'|" .env
+          sed -i -e "s|FLW_PUBLIC_KEY=.*|FLW_PUBLIC_KEY='${{ secrets.FLW_PUBLIC_KEY_TEST }}'|" .env
+          sed -i -e "s|FLW_WEBHOOK_SECRET=.*|FLW_WEBHOOK_SECRET='${{ secrets.FLW_WEBHOOK_SECRET_TEST }}'|" .env
+          sed -i -e "s|FLW_ENCRYPTION_KEY=.*|FLW_ENCRYPTION_KEY='${{ secrets.FLW_ENCRYPTION_KEY_TEST }}'|" .env
+          sed -i -e "s|PAYMENT_REDIRECT_URL=.*|PAYMENT_REDIRECT_URL='${{ secrets.PAYMENT_REDIRECT_URL_TEST }}'|" .env
+          sed -i -e "s|FRONTEND_SUCCESSFUL_SALES_URL=.*|FRONTEND_SUCCESSFUL_SALES_URL='${{ secrets.FRONTEND_SUCCESSFUL_SALES_URL_TEST }}'|" .env
+          sed -i -e "s|COMPANY_LOGO_URL=.*|COMPANY_LOGO_URL='${{ secrets.COMPANY_LOGO_URL_TEST }}'|" .env
+      
+      - name: Copy Prisma Schema folder
+        run: cp -r prisma/schema dist/prisma/schema
+ 
+      - name: Update apt repositories 
+        run: sudo apt update
+ 
       - name: Install rsync
         run: sudo apt-get install -y rsync
-
+ 
+      # - name: SSH login and deploy
+      #   run: |
+      #     mkdir -p ~/.ssh
+      #     echo "${{secrets.SSH_PRIVATE_KEY}}" > ~/.ssh/id_rsa
+      #     chmod 600 ~/.ssh/id_rsa
+      #     rsync -av \
+      #     --include='dist/***' \
+      #     --include='package.json' \
+      #     --exclude='*' \
+      #     -e 'ssh -p 7822 -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no' \
+      #     dist/ package.json .env skillz@103.72.76.68:energy/api
+      - name: Install rsync
+        run: sudo apt-get install -y rsync
+ 
       - name: SSH login and deploy
         run: |
           mkdir -p ~/.ssh
           echo "${{secrets.SSH_PRIVATE_KEY}}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           rsync --delete -va -e 'ssh -p 7822 -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no' \
-            dist/ package.json node_modules .env skillz@103.72.76.68:energy/api
+            dist/ package.json  .env .htaccess skillz@103.72.76.68:energy/api
+ 
+      - name: SSH and effect migration
+        run: |
+          ssh -p 7822 -i ~/.ssh/id_rsa -t skillz@103.72.76.68 "cd energy/api && npm i && cloudlinux-selector stop --json --interpreter nodejs --app-root energy/api && cloudlinux-selector start --json --interpreter nodejs --app-root energy/api"
