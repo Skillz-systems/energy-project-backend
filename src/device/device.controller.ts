@@ -70,14 +70,22 @@ export class DeviceController {
     }),
   )
   @Post('batch-upload')
-  async createBatchDevices(
-    @UploadedFile(
-      new ParseFilePipeBuilder()
-        .addFileTypeValidator({ fileType: /^(text\/csv)$/i })
-        .build({ errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY }),
-    )
-    file: Express.Multer.File,
-  ) {
+  async createBatchDevices(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    const allowedTypes = ['.csv'];
+
+    const fileExtension = file.originalname
+      .toLowerCase()
+      .substring(file.originalname.lastIndexOf('.'));
+
+    if (!allowedTypes.includes(fileExtension)) {
+      throw new BadRequestException('Only CSV files are allowed (.csv)');
+    }
+
+
     const filePath = file.path;
     const upload = await this.deviceService.uploadBatchDevices(filePath);
     unlinkSync(filePath);
