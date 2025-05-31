@@ -21,7 +21,8 @@
     "test:e2e:watch": "jest --config ./test/jest-e2e.json --watch"
   },
   "dependencies": {
-    "@nestjs-modules/mailer": "^1.6.1",
+    "@nestjs-modules/mailer": "^2.0.2",
+    "@nestjs/axios": "^4.0.0",
     "@nestjs/bullmq": "^11.0.2",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.2.3",

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateDeviceDto } from './dto/create-device.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateDeviceDto } from './dto/update-device.dto';
@@ -41,13 +45,12 @@ export class DeviceService {
 
   async createBatchDeviceTokens(filePath: string) {
     const rows = await this.parseCsv(filePath);
+    console.log({ filePath, rows });
 
-    console.log({filePath, rows})
     const filteredRows = rows.filter(
       (row) => row['Serial_Number'] && row['Key'],
     );
 
-    console.log({ rows });
     const data = filteredRows.map((row) => ({
       serialNumber: row['Serial_Number'],
       deviceName: row['Device_Name'],
@@ -62,23 +65,130 @@ export class DeviceService {
     }));
 
     const deviceTokens = [];
+    const processedDevices = [];
 
-    for (const device of data) {
+    for (const deviceData of data) {
+      try {
+        const device = await this.prisma.device.upsert({
+          where: { serialNumber: deviceData.serialNumber },
+          update: {
+            key: deviceData.key,
+            timeDivider: deviceData.timeDivider,
+            firmwareVersion: deviceData.firmwareVersion,
+            hardwareModel: deviceData.hardwareModel,
+            startingCode: deviceData.startingCode,
+            restrictedDigitMode: deviceData.restrictedDigitMode,
+            updatedAt: new Date(),
+          },
+          create: {
+            serialNumber: deviceData.serialNumber,
+            key: deviceData.key,
+            count: deviceData.count,
+            timeDivider: deviceData.timeDivider,
+            firmwareVersion: deviceData.firmwareVersion,
+            hardwareModel: deviceData.hardwareModel,
+            startingCode: deviceData.startingCode,
+            restrictedDigitMode: deviceData.restrictedDigitMode,
+            isTokenable: true,
+          },
+        });
+
+        const token = await this.openPayGo.generateToken(
+          deviceData,
+          -1, // Forever token for batch creation
+          Number(device.count),
+        );
+
+        await this.prisma.device.update({
+          where: { id: device.id },
+          data: { count: String(token.newCount) },
+        });
+
+        // Store token in database
+        await this.prisma.tokens.create({
+          data: {
+            deviceId: device.id,
+            token: String(token.finalToken),
+            duration: -1,
+          },
+        });
+
+        deviceTokens.push({
+          deviceId: device.id,
+          deviceSerialNumber: device.serialNumber,
+          deviceKey: device.key,
+          deviceToken: token.finalToken,
+          duration: -1,
+        });
+
+        processedDevices.push(device);
+      } catch (error) {
+        console.error(
+          `Error processing device ${deviceData.serialNumber}:`,
+          error,
+        );
+      }
+    }
+
+    return {
+      message: MESSAGES.CREATED,
+      devicesProcessed: processedDevices.length,
+      deviceTokens,
+    };
+  }
+
+  async generateSingleDeviceToken(deviceId: string, tokenDuration: number) {
+    const device = await this.prisma.device.findUnique({
+      where: { id: deviceId },
+    });
+
+    if (!device) {
+      throw new NotFoundException(`Device with ID ${deviceId} not found`);
+    }
+
+    // if (!device.isTokenable) {
+    //   throw new BadRequestException('This device is not tokenable');
+    // }
+
+    try {
       const token = await this.openPayGo.generateToken(
-        device,
-        -1,
+        {
+          key: device.key,
+          timeDivider: device.timeDivider,
+          restrictedDigitMode: device.restrictedDigitMode,
+          startingCode: device.startingCode,
+        } as any,
+        tokenDuration,
         Number(device.count),
       );
 
-      deviceTokens.push({
-        deviceSerialNumber: device.serialNumber,
-        deviceKey: device.key,
-        deviceToken: token.finalToken,
+      await this.prisma.device.update({
+        where: { id: deviceId },
+        data: { count: String(token.newCount) },
       });
-    }
 
-    await this.mapDevicesToModel(filteredRows);
-    return { message: MESSAGES.CREATED, deviceTokens };
+      const savedToken = await this.prisma.tokens.create({
+        data: {
+          deviceId: device.id,
+          token: String(token.finalToken),
+          duration: tokenDuration,
+        },
+      });
+
+      return {
+        message: 'Token generated successfully',
+        deviceId: device.id,
+        deviceSerialNumber: device.serialNumber,
+        tokenId: savedToken.id,
+        deviceToken: token.finalToken,
+        tokenDuration:
+          tokenDuration === -1 ? 'Forever' : `${tokenDuration} days`,
+      };
+    } catch (error) {
+      throw new BadRequestException(
+        `Failed to generate token: ${error.message}`,
+      );
+    }
   }
 
   async devicesFilter(
@@ -123,7 +233,7 @@ export class DeviceService {
         //   : fetchFormat === 'unused'
         //     ? { isUsed: false }
         //     : {},
-            
+
         hardwareModel
           ? { hardwareModel: { contains: hardwareModel, mode: 'insensitive' } }
           : {},
@@ -163,6 +273,13 @@ export class DeviceService {
       skip,
       take,
       where: {},
+      include: {
+        _count: {
+          select: {
+            tokens: true,
+          },
+        },
+      },
       orderBy,
     });
 
