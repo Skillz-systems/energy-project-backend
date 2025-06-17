@@ -84,14 +84,14 @@ export class ListDevicesQueryDto {
   sortOrder?: 'asc' | 'desc';
 
   @ApiPropertyOptional({
-    description: 'Specifies whether to fetch all the include both used and unused. Default fetches only unused ',
-    enum: ['all'],
-    example: '',
+    description: 'Filter devices by usage status: all, used, or unused',
+    enum: ['all', 'used', 'unused'],
+    example: 'unused',
   })
   @IsOptional()
   @IsString()
-  @IsIn(['all'])
-  fetchFormat?: 'all';
+  @IsIn(['all', 'used', 'unused'])
+  fetchFormat?: 'all' | 'used' | 'unused';
 
   @ApiPropertyOptional({
     description: 'Search devices by name, email, or devicename',

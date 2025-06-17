@@ -98,7 +98,7 @@ export class FlutterwaveService {
       }
       return data.data;
     } catch (error) {
-      console.log({ error });
+      // console.log({ error });
       await this.prisma.$transaction([
         this.prisma.payment.update({
           where: { id: payment.id },
@@ -144,7 +144,7 @@ export class FlutterwaveService {
       }
       return response.data;
     } catch (error) {
-      console.log({ error });
+      // console.log({ error });
       throw new Error(`Failed to generate static account: ${error.message}`);
     }
   }
@@ -161,7 +161,7 @@ export class FlutterwaveService {
       }
       return response;
     } catch (error) {
-      console.log({ error });
+      // console.log({ error });
 
       throw new Error(`Failed to verify transaction: ${error.message}`);
     }
@@ -181,7 +181,7 @@ export class FlutterwaveService {
       }
       return response;
     } catch (error) {
-      console.log({ error });
+      // console.log({ error });
 
       throw new Error(`Failed to verify transaction: ${error.message}`);
     }

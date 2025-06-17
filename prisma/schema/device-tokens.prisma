@@ -28,7 +28,9 @@ model Device {
 model Tokens {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  token     String   @unique
+  token    String @unique
+  duration Int    @default(0)
+
   createdAt DateTime @default(now())
 
   device   Device? @relation(fields: [deviceId], references: [id])

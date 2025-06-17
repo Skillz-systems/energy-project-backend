@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateDeviceDto } from './dto/create-device.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateDeviceDto } from './dto/update-device.dto';
@@ -7,10 +11,14 @@ import * as csvParser from 'csv-parser';
 import { MESSAGES } from '../constants';
 import { Prisma } from '@prisma/client';
 import { ListDevicesQueryDto } from './dto/list-devices.dto';
+import { OpenPayGoService } from '../openpaygo/openpaygo.service';
 
 @Injectable()
 export class DeviceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly openPayGo: OpenPayGoService,
+  ) {}
 
   async uploadBatchDevices(filePath: string) {
     const rows = await this.parseCsv(filePath);
@@ -33,6 +41,154 @@ export class DeviceService {
     return await this.prisma.device.create({
       data: createDeviceDto,
     });
+  }
+
+  async createBatchDeviceTokens(filePath: string) {
+    const rows = await this.parseCsv(filePath);
+    console.log({ filePath, rows });
+
+    const filteredRows = rows.filter(
+      (row) => row['Serial_Number'] && row['Key'],
+    );
+
+    const data = filteredRows.map((row) => ({
+      serialNumber: row['Serial_Number'],
+      deviceName: row['Device_Name'],
+      key: row['Key'],
+      count: row['Count'],
+      timeDivider: row['Time_Divider'],
+      firmwareVersion: row['Firmware_Version'],
+      hardwareModel: row['Hardware_Model'],
+      startingCode: row['Starting_Code'],
+      restrictedDigitMode: row['Restricted_Digit_Mode'] == '1',
+      isTokenable: row['Tokenable'] == '1',
+    }));
+
+    const deviceTokens = [];
+    const processedDevices = [];
+
+    for (const deviceData of data) {
+      try {
+        const device = await this.prisma.device.upsert({
+          where: { serialNumber: deviceData.serialNumber },
+          update: {
+            key: deviceData.key,
+            timeDivider: deviceData.timeDivider,
+            firmwareVersion: deviceData.firmwareVersion,
+            hardwareModel: deviceData.hardwareModel,
+            startingCode: deviceData.startingCode,
+            restrictedDigitMode: deviceData.restrictedDigitMode,
+            updatedAt: new Date(),
+          },
+          create: {
+            serialNumber: deviceData.serialNumber,
+            key: deviceData.key,
+            count: deviceData.count,
+            timeDivider: deviceData.timeDivider,
+            firmwareVersion: deviceData.firmwareVersion,
+            hardwareModel: deviceData.hardwareModel,
+            startingCode: deviceData.startingCode,
+            restrictedDigitMode: deviceData.restrictedDigitMode,
+            isTokenable: true,
+          },
+        });
+
+        const token = await this.openPayGo.generateToken(
+          deviceData,
+          -1, // Forever token for batch creation
+          Number(device.count),
+        );
+
+        await this.prisma.device.update({
+          where: { id: device.id },
+          data: { count: String(token.newCount) },
+        });
+
+        // Store token in database
+        await this.prisma.tokens.create({
+          data: {
+            deviceId: device.id,
+            token: String(token.finalToken),
+            duration: -1,
+          },
+        });
+
+        deviceTokens.push({
+          deviceId: device.id,
+          deviceSerialNumber: device.serialNumber,
+          deviceKey: device.key,
+          deviceToken: token.finalToken,
+          duration: -1,
+        });
+
+        processedDevices.push(device);
+      } catch (error) {
+        console.error(
+          `Error processing device ${deviceData.serialNumber}:`,
+          error,
+        );
+      }
+    }
+
+    return {
+      message: MESSAGES.CREATED,
+      devicesProcessed: processedDevices.length,
+      deviceTokens,
+    };
+  }
+
+  async generateSingleDeviceToken(deviceId: string, tokenDuration: number) {
+    const device = await this.prisma.device.findUnique({
+      where: { id: deviceId },
+    });
+
+    if (!device) {
+      throw new NotFoundException(`Device with ID ${deviceId} not found`);
+    }
+
+    // if (!device.isTokenable) {
+    //   throw new BadRequestException('This device is not tokenable');
+    // }
+
+    try {
+      const token = await this.openPayGo.generateToken(
+        {
+          key: device.key,
+          timeDivider: device.timeDivider,
+          restrictedDigitMode: device.restrictedDigitMode,
+          startingCode: device.startingCode,
+        } as any,
+        tokenDuration,
+        Number(device.count),
+      );
+
+      await this.prisma.device.update({
+        where: { id: deviceId },
+        data: { count: String(token.newCount) },
+      });
+
+      const savedToken = await this.prisma.tokens.create({
+        data: {
+          deviceId: device.id,
+          token: String(token.finalToken),
+          duration: tokenDuration,
+        },
+      });
+
+      return {
+        message: 'Token generated successfully',
+        deviceId: device.id,
+        deviceSerialNumber: device.serialNumber,
+        tokenId: savedToken.id,
+        deviceToken: token.finalToken,
+        tokenDuration:
+          tokenDuration === -1 ? 'Forever' : `${tokenDuration} days`,
+      };
+    } catch (error) {
+      throw new BadRequestException(
+        `Failed to generate token: ${error.message}`,
+      );
+    }
   }
 
   async devicesFilter(
@@ -71,7 +227,13 @@ export class DeviceService {
           ? { startingCode: { contains: startingCode, mode: 'insensitive' } }
           : {},
         key ? { key: { contains: key, mode: 'insensitive' } } : {},
-        // !fetchFormat ? { isUsed: false } : { },
+
+        // fetchFormat === 'used'
+        //   ? { isUsed: true }
+        //   : fetchFormat === 'unused'
+        //     ? { isUsed: false }
+        //     : {},
+
         hardwareModel
           ? { hardwareModel: { contains: hardwareModel, mode: 'insensitive' } }
           : {},
@@ -110,8 +272,13 @@ export class DeviceService {
     const result = await this.prisma.device.findMany({
       skip,
       take,
-      where: {
-        ...filterConditions,
+      where: {},
+      include: {
+        _count: {
+          select: {
+            tokens: true,
+          },
+        },
       },
       orderBy,
     });
@@ -128,6 +295,9 @@ export class DeviceService {
   async fetchDevice(fieldAndValue: Prisma.DeviceWhereUniqueInput) {
     return await this.prisma.device.findUnique({
       where: { ...fieldAndValue },
+      include: {
+        tokens: true,
+      },
     });
   }
 

@@ -9,6 +9,7 @@ import { EmailService } from '../mailer/email.service';
 import { ConfigService } from '@nestjs/config';
 import { OpenPayGoService } from '../openpaygo/openpaygo.service';
 import { FlutterwaveService } from '../flutterwave/flutterwave.service';
+import { TermiiService } from '../termii/termii.service';
 
 @Injectable()
 export class PaymentService {
@@ -18,6 +19,7 @@ export class PaymentService {
     private readonly config: ConfigService,
     private readonly openPayGo: OpenPayGoService,
     private readonly flutterwaveService: FlutterwaveService,
+    private readonly termiiService: TermiiService,
   ) {}
 
   async generatePaymentLink(
@@ -247,12 +249,15 @@ export class PaymentService {
           await this.prisma.tokens.create({
             data: {
               deviceId: device.id,
-              token: String(token.newCount),
+              token: String(token.finalToken),
+              duration: tokenDuration,
             },
           });
         }
       }
     }
+
+    console.log({ deviceTokens });
 
     if (deviceTokens.length) {
       await this.Email.sendMail({
@@ -264,6 +269,21 @@ export class PaymentService {
           tokens: JSON.stringify(deviceTokens, undefined, 4),
         },
       });
+
+      if (sale.customer.phone) {
+        try {
+          await this.termiiService.sendDeviceTokensSms(
+            sale.customer.phone,
+            deviceTokens,
+            sale.customer.firstname || sale.customer.lastname,
+          );
+          console.log('Device tokens SMS sent successfully');
+        } catch (error) {
+          console.error('Failed to send device tokens SMS:', error);
+        }
+      } else {
+        console.warn('Customer phone number not available for SMS');
+      }
     }
 
     if (sale.installmentAccountDetailsId && !sale.deliveredAccountDetails) {
@@ -277,6 +297,26 @@ export class PaymentService {
         },
       });
 
+      if (sale.customer.phone) {
+        try {
+          const accountMessage = this.formatInstallmentAccountMessage(
+            sale.installmentAccountDetails,
+            sale.customer.firstname || sale.customer.lastname,
+          );
+
+          await this.termiiService.sendSms({
+            to: sale.customer.phone,
+            message: accountMessage,
+          });
+          console.log('Installment account details SMS sent successfully');
+        } catch (error) {
+          console.error(
+            'Failed to send installment account details SMS:',
+            error,
+          );
+        }
+      }
+
       await this.prisma.sales.update({
         where: {
           id: sale.id,
@@ -288,6 +328,21 @@ export class PaymentService {
     }
 
     return updatedSale;
+  }
+
+  private formatInstallmentAccountMessage(
+    accountDetails: any,
+    customerName?: string,
+  ): string {
+    const greeting = customerName ? `Dear ${customerName},` : 'Dear Customer,';
+
+    let message = `${greeting}\n\nYour installment payment details:\n\n`;
+    message += `Bank: ${accountDetails.bankName}\n`;
+    message += `Account: ${accountDetails.accountNumber}\n`;
+    message += `Name: ${accountDetails.accountName}\n\n`;
+    message += `Use these details for monthly payments.\n\nThank you!`;
+
+    return message;
   }
 
   async verifyWebhookSignature(payload: any) {

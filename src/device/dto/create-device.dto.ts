@@ -54,3 +54,9 @@ export class CreateDeviceDto {
   })
   isTokenable?: boolean;
 }
+
+
+export class CreateBatchDeviceTokensDto {
+  @ApiProperty({ type: 'file' })
+  file: Express.Multer.File;
+}
