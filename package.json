@@ -21,6 +21,10 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:e2e:watch": "jest --config ./test/jest-e2e.json --watch"
   },
+  "engines": {
+    "node": ">=20.18.0",
+    "npm": ">=10.8.2"
+  },
   "dependencies": {
     "@nestjs-modules/mailer": "^2.0.2",
     "@nestjs/axios": "^4.0.0",
