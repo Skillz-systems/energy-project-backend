@@ -2,10 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 
 @Injectable()
 export class AppService {
-   private readonly logger = new Logger(AppService.name);
+  private readonly logger = new Logger(AppService.name);
   getHello(): string {
-
-    return 'Welcom to A4t!proo';
+    return 'Welcom to A4t!prooee';
   }
 
   //   @Cron(CronExpression.EVERY_30_SECONDS)
@@ -15,4 +14,3 @@ export class AppService {
   //   this.logger.debug('Called every 30 seconds');
   // }
 }
- 

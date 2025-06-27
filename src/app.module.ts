@@ -25,6 +25,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CronjobsModule } from './cronjobs/cronjobs.module';
 import { TermiiModule } from './termii/termii.module';
+import { JobstatusModule } from './jobstatus/jobstatus.module';
 
 @Module({
   imports: [
@@ -73,6 +74,7 @@ import { TermiiModule } from './termii/termii.module';
     FlutterwaveModule,
     CronjobsModule,
     TermiiModule,
+    JobstatusModule,
   ],
   controllers: [AppController],
   providers: [
