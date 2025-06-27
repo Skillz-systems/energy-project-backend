@@ -93,9 +93,11 @@ export class DeviceService {
           },
         });
 
+        const duration = -1
+
         const token = await this.openPayGo.generateToken(
           deviceData,
-          -1, // Forever token for batch creation
+          duration,
           Number(device.count),
         );
 
@@ -109,7 +111,8 @@ export class DeviceService {
           data: {
             deviceId: device.id,
             token: String(token.finalToken),
-            duration: -1,
+            // duration: -1,
+            duration,
           },
         });
 
@@ -118,7 +121,7 @@ export class DeviceService {
           deviceSerialNumber: device.serialNumber,
           deviceKey: device.key,
           deviceToken: token.finalToken,
-          duration: -1,
+          duration,
         });
 
         processedDevices.push(device);
