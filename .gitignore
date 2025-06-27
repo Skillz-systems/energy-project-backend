@@ -56,4 +56,5 @@ pids
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 pnpm-lock.yaml
+package-lock.json
 files/
