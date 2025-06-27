@@ -35,7 +35,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { GetProductsDto } from './dto/get-products.dto';
 import { CreateProductCategoryDto } from './dto/create-category.dto';
-import { GetUser } from '../auth/decorators/getUser';
+import { GetSessionUser } from '../auth/decorators/getUser';
 
 @ApiTags('Products')
 @Controller('products')
@@ -77,7 +77,7 @@ export class ProductsController {
         .build({ errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY }),
     )
     file: Express.Multer.File,
-    @GetUser('id') id: string,
+    @GetSessionUser('id') id: string,
   ) {
     return await this.productsService.create(CreateProductDto, file, id);
   }

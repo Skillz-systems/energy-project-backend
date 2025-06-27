@@ -7,6 +7,8 @@ model Sales {
 
   batchAllocations BatchAlocation[]
 
+  applyMargin Boolean @default(false)
+
   status SalesStatus
 
   customerId String   @db.ObjectId
@@ -18,6 +20,10 @@ model Sales {
   payment    Payment[]
   totalPrice Float     @default(0)
   totalPaid  Float     @default(0)
+
+  totalMonthlyPayment      Float @default(0)
+  installmentStartingPrice Float @default(0)
+  totalInstallmentDuration Int   @default(0)
 
   installmentAccountDetailsId String?                    @db.ObjectId
   installmentAccountDetails   InstallmentAccountDetails? @relation(fields: [installmentAccountDetailsId], references: [id])
@@ -79,6 +85,8 @@ model SaleItem {
 
   discount   Float?
   totalPrice Float
+
+  monthlyPayment Float?
 
   paymentMode         PaymentMode
   miscellaneousPrices Json?       @db.Json

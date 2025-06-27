@@ -111,7 +111,7 @@ export class AuthService {
     await this.Email.sendMail({
       userId: newUser.id,
       to: email,
-      from: this.config.get<string>('EMAIL_USER'),
+      from: this.config.get<string>('MAIL_FROM'),
       subject: `Welcome to ${platformName} - Let's Get You Started!`,
       template: './new-user-onboarding',
       context: {
@@ -119,7 +119,7 @@ export class AuthService {
         userEmail: email,
         platformName,
         createPasswordUrl,
-        supportEmail: this.config.get<string>('EMAIL_USER') || 'a4t@gmail.com',
+        supportEmail: this.config.get<string>('MAIL_FROM') || 'a4t@gmail.com',
       },
     });
 
@@ -268,14 +268,14 @@ export class AuthService {
 
     await this.Email.sendMail({
       to: email,
-      from: this.config.get<string>('EMAIL_USER'),
+      from: this.config.get<string>('MAIL_FROM'),
       subject: `Reset Your Password - ${platformName}`,
       template: './reset-password',
       context: {
         firstname: existingUser.firstname,
         resetLink,
         platformName,
-        supportEmail: this.config.get<string>('EMAIL_USER'),
+        supportEmail: this.config.get<string>('MAIL_FROM'),
       },
     });
 
@@ -331,7 +331,7 @@ export class AuthService {
   ) {
     const tokenValid = await this.verifyToken(
       params.token,
-      TokenType.password_reset,
+      TokenType.email_verification,
       params.userid,
     );
 

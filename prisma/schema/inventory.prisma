@@ -36,6 +36,9 @@ model InventoryBatch {
   numberOfStock     Int // Original quantity in this batch.
   remainingQuantity Int // Current remaining quantity in this batch
 
+  creatorId      String? @db.ObjectId
+  creatorDetails User?   @relation(fields: [creatorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?

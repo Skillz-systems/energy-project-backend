@@ -132,8 +132,8 @@ export class ProductsService {
             }
           : {},
         categoryId ? { categoryId } : {},
-        createdAt ? { createdAt: new Date(createdAt) } : {},
-        updatedAt ? { updatedAt: new Date(updatedAt) } : {},
+        createdAt ? { createdAt: { gte: new Date(createdAt) } } : {},
+        updatedAt ? { updatedAt: { gte: new Date(updatedAt) } } : {},
       ],
     };
 
@@ -143,12 +143,10 @@ export class ProductsService {
     const skip = (pageNumber - 1) * limitNumber;
     const take = limitNumber;
 
-    const orderBy = sortField
-      ? {
-          [sortField]: sortOrder || 'asc',
-        }
-      : undefined;
-
+    const orderBy = {
+      [sortField || 'createdAt']: sortOrder || 'asc',
+    };
+    
     // Fetch products with pagination and filters
     const result = await this.prisma.product.findMany({
       where: whereConditions,
@@ -334,11 +332,11 @@ export class ProductsService {
     const { inventories, category, ...rest } = product;
     const { maximumInventoryBatchPrice, minimumInventoryBatchPrice } =
       inventories
-        .map(({ inventory }) => {
+        .map(({ quantity, inventory }) => {
           const { batches } = inventory;
           const batchPrices = batches
             .filter(({ remainingQuantity }) => remainingQuantity > 0)
-            .map((batch) => batch.price);
+            .map((batch) => batch.price * quantity);
 
           return {
             minimumInventoryBatchPrice: batchPrices.length
@@ -361,11 +359,14 @@ export class ProductsService {
           },
         );
 
-    const priceRange = `₦${minimumInventoryBatchPrice.toFixed(2)} - ₦${maximumInventoryBatchPrice.toFixed(2)}`;
+    const priceRange = {
+      minimumInventoryBatchPrice: minimumInventoryBatchPrice.toFixed(2),
+      maximumInventoryBatchPrice: maximumInventoryBatchPrice.toFixed(2),
+    };
 
     return {
       ...rest,
-      inventories: inventories.map(({ inventory }) => {
+      inventories: inventories.map(({quantity, inventory }) => {
         const { batches, ...rest } = inventory;
 
         const totalRemainingQuantities = batches.reduce(
@@ -382,6 +383,7 @@ export class ProductsService {
           ...rest,
           totalRemainingQuantities,
           totalInitialQuantities,
+          productInventoryQuantity: quantity
         };
       }),
       category: plainToInstance(CategoryEntity, category),

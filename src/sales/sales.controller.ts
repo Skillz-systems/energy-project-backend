@@ -23,11 +23,12 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
-import { GetUser } from '../auth/decorators/getUser';
+import { GetSessionUser } from '../auth/decorators/getUser';
 import { SalesService } from './sales.service';
 import { CreateSalesDto } from './dto/create-sales.dto';
 import { ValidateSaleProductDto } from './dto/validate-sale-product.dto';
 import { PaginationQueryDto } from '../utils/dto/pagination.dto';
+import { CreateFinancialMarginDto } from './dto/create-financial-margins.dto';
 
 @SkipThrottle()
 @ApiTags('Sales')
@@ -58,7 +59,7 @@ export class SalesController {
   @Post('create')
   async create(
     @Body() createSalesDto: CreateSalesDto,
-    @GetUser('id') requestUserId: string,
+    @GetSessionUser('id') requestUserId: string,
   ) {
     return await this.salesService.createSale(requestUserId, createSalesDto);
   }
@@ -108,14 +109,39 @@ export class SalesController {
   @RolesAndPermissions({
     permissions: [`${ActionEnum.manage}:${SubjectEnum.Sales}`],
   })
+  @HttpCode(HttpStatus.CREATED)
+  @Post('financial-margins')
+  async createMargins(@Body() body: CreateFinancialMarginDto) {
+    return await this.salesService.createFinMargin(body);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Sales}`],
+  })
   @ApiBadRequestResponse({})
   @HttpCode(HttpStatus.OK)
   @ApiParam({
     name: 'id',
-    description: 'Contract id to fetch details.',
+    description: 'Sale id to fetch details.',
   })
   @Get(':id')
   async getSale(@Param('id') id: string) {
     return await this.salesService.getSale(id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Sales}`],
+  })
+  @ApiBadRequestResponse({})
+  @HttpCode(HttpStatus.OK)
+  @ApiParam({
+    name: 'id',
+    description: 'Sale id to fetch payment details.',
+  })
+  @Get(':id/payment-data')
+  async getSalePaymentData(@Param('id') id: string) {
+    return await this.salesService.getSalesPaymentDetails(id);
   }
 }

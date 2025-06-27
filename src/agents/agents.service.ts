@@ -5,15 +5,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CreateAgentDto } from './dto/create-agent.dto';
-import { UpdateAgentDto } from './dto/update-agent.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { generateRandomPassword } from '../utils/generate-pwd';
-import * as argon from 'argon2';
 import { hashPassword } from '../utils/helpers.util';
 import { GetAgentsDto } from './dto/get-agent.dto';
 import { MESSAGES } from '../constants';
 import { ObjectId } from 'mongodb';
-import { AddressType, UserStatus } from '@prisma/client';
+import { AddressType, Prisma, UserStatus } from '@prisma/client';
+import { plainToInstance } from 'class-transformer';
+import { UserEntity } from '../users/entity/user.entity';
 
 @Injectable()
 export class AgentsService {
@@ -96,23 +96,44 @@ export class AgentsService {
       page = 1,
       limit = 100,
       status,
+      sortField,
+      sortOrder,
+      search,
       createdAt,
       updatedAt,
     } = getProductsDto;
 
-    const whereConditions: any = {};
-
-    // Apply filtering conditions
-    if (status) whereConditions.status = status;
-    if (createdAt) whereConditions.createdAt = { gte: new Date(createdAt) };
-    if (updatedAt) whereConditions.updatedAt = { gte: new Date(updatedAt) };
+    const whereConditions: Prisma.AgentWhereInput = {
+      AND: [
+        search
+          ? {
+              user: {
+                OR: [
+                  { firstname: { contains: search, mode: 'insensitive' } },
+                  { lastname: { contains: search, mode: 'insensitive' } },
+                  { email: { contains: search, mode: 'insensitive' } },
+                  { username: { contains: search, mode: 'insensitive' } },
+                ],
+              },
+            }
+          : {},
+        status ? { user: { status } } : {},
+        createdAt ? { createdAt: { gte: new Date(createdAt) } } : {},
+        updatedAt ? { updatedAt: { gte: new Date(updatedAt) } } : {},
+      ],
+    };
 
     const pageNumber = parseInt(String(page), 10);
     const limitNumber = parseInt(String(limit), 10);
 
     const skip = (pageNumber - 1) * limitNumber;
     const take = limitNumber;
-    // Fetch products with pagination and filters
+
+    const orderBy = {
+      [sortField || 'createdAt']: sortOrder || 'asc',
+    };
+    
+    // Fetch Agents with pagination and filters
     const agents = await this.prisma.agent.findMany({
       where: whereConditions,
       include: {
@@ -121,7 +142,7 @@ export class AgentsService {
       skip,
       take,
       orderBy: {
-        createdAt: 'desc',
+        user: orderBy,
       },
     });
 
@@ -130,7 +151,10 @@ export class AgentsService {
     });
 
     return {
-      agents,
+      agents: agents.map((agent) => ({
+        ...agent,
+        user: plainToInstance(UserEntity, agent.user),
+      })),
       total,
       page,
       limit,

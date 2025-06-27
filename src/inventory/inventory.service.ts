@@ -48,8 +48,8 @@ export class InventoryService {
           : {},
         inventoryCategoryId ? { inventoryCategoryId } : {},
         inventorySubCategoryId ? { inventorySubCategoryId } : {},
-        createdAt ? { createdAt: new Date(createdAt) } : {},
-        updatedAt ? { updatedAt: new Date(updatedAt) } : {},
+        createdAt ? { createdAt: { gte: new Date(createdAt) } } : {},
+        updatedAt ? { updatedAt: { gte: new Date(updatedAt) } } : {},
         inventoryClass ? { class: inventoryClass as InventoryClass } : {},
       ],
     };
@@ -64,6 +64,7 @@ export class InventoryService {
   }
 
   async createInventory(
+    requestUserId: string,
     createInventoryDto: CreateInventoryDto,
     file: Express.Multer.File,
   ) {
@@ -105,6 +106,7 @@ export class InventoryService {
 
     await this.prisma.inventoryBatch.create({
       data: {
+        creatorId: requestUserId,
         inventoryId: inventoryData.id,
         batchNumber: Date.now() - 100,
         costOfItem: parseFloat(createInventoryDto.costOfItem),
@@ -119,7 +121,10 @@ export class InventoryService {
     };
   }
 
-  async createInventoryBatch(createInventoryBatchDto: CreateInventoryBatchDto) {
+  async createInventoryBatch(
+    requestUserId: string,
+    createInventoryBatchDto: CreateInventoryBatchDto,
+  ) {
     const isInventoryValid = await this.prisma.inventory.findFirst({
       where: {
         id: createInventoryBatchDto.inventoryId,
@@ -132,6 +137,7 @@ export class InventoryService {
 
     await this.prisma.inventoryBatch.create({
       data: {
+        creatorId: requestUserId,
         batchNumber: Date.now() - 100,
         inventoryId: createInventoryBatchDto.inventoryId,
         costOfItem: parseFloat(createInventoryBatchDto.costOfItem),
@@ -185,11 +191,9 @@ export class InventoryService {
     const skip = (pageNumber - 1) * limitNumber;
     const take = limitNumber;
 
-    const orderBy = sortField
-      ? {
-          [sortField]: sortOrder || 'asc',
-        }
-      : undefined;
+    const orderBy = {
+      [sortField || 'createdAt']: sortOrder || 'asc',
+    };
 
     const result = await this.prisma.inventory.findMany({
       skip,
@@ -197,7 +201,16 @@ export class InventoryService {
       where: filterConditions,
       orderBy,
       include: {
-        batches: true,
+        batches: {
+          include: {
+            creatorDetails: {
+              select: {
+                firstname: true,
+                lastname: true,
+              },
+            },
+          },
+        },
         inventoryCategory: true,
         inventorySubCategory: true,
       },
@@ -222,7 +235,16 @@ export class InventoryService {
     const inventory = await this.prisma.inventory.findUnique({
       where: { id: inventoryId },
       include: {
-        batches: true,
+        batches: {
+          include: {
+            creatorDetails: {
+              select: {
+                firstname: true,
+                lastname: true,
+              },
+            },
+          },
+        },
         inventoryCategory: true,
         inventorySubCategory: true,
       },
@@ -254,7 +276,7 @@ export class InventoryService {
   }
 
   async createInventoryCategory(categories: CreateCategoryDto[]) {
-    const existingCategoryNames = [];
+    // const existingCategoryNames = [];
 
     for (const category of categories) {
       const { name, subCategories, parentId } = category;
@@ -369,20 +391,33 @@ export class InventoryService {
       include: {
         inventoryCategory: true;
         inventorySubCategory: true;
-        batches: true;
+        batches: {
+          include: {
+            creatorDetails: {
+              select: {
+                firstname: true;
+                lastname: true;
+              };
+            };
+          };
+        };
       };
     }>,
   ) {
     const { batches, inventoryCategory, inventorySubCategory, ...rest } =
       inventory;
-    let salePrice = '';
+    const salePrice = {
+      minimumInventoryBatchPrice: 0,
+      maximumInventoryBatchPrice: 0,
+    };
     if (batches.length) {
       const batchPrices = batches
         .filter(({ remainingQuantity }) => remainingQuantity > 0)
         .map((batch) => batch.price);
       const minimumInventoryBatchPrice = Math.floor(Math.min(...batchPrices));
       const maximumInventoryBatchPrice = Math.ceil(Math.max(...batchPrices));
-      salePrice = `₦${minimumInventoryBatchPrice} - ₦${maximumInventoryBatchPrice}`;
+      salePrice.minimumInventoryBatchPrice = minimumInventoryBatchPrice;
+      salePrice.maximumInventoryBatchPrice = maximumInventoryBatchPrice;
     }
     const inventoryValue = batches.reduce(
       (sum, batch) => sum + batch.remainingQuantity * batch.price,
@@ -399,6 +434,11 @@ export class InventoryService {
       0,
     );
 
+    const updatedBatches = batches.map((batch) => ({
+      ...batch,
+      stockValue: (batch.remainingQuantity * batch.price).toFixed(2),
+    }));
+
     return {
       ...rest,
       inventoryCategory: plainToInstance(CategoryEntity, inventoryCategory),
@@ -406,7 +446,7 @@ export class InventoryService {
         CategoryEntity,
         inventorySubCategory,
       ),
-      batches: plainToInstance(InventoryBatchEntity, batches),
+      batches: plainToInstance(InventoryBatchEntity, updatedBatches),
       salePrice,
       inventoryValue,
       totalRemainingQuantities,

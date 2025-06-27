@@ -2,6 +2,7 @@ import { SaleItemDto } from './dto/create-sales.dto';
 
 export interface ProcessedSaleItem extends SaleItemDto {
   totalPrice: number;
+  duration?: number;
   installmentTotalPrice?: number;
   monthlyPayment?: number;
   totalPayableAmount?: number;

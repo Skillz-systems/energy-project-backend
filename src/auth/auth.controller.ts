@@ -39,7 +39,7 @@ import {
   CreateUserPasswordParamsDto,
 } from './dto/create-user-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { GetUser } from './decorators/getUser';
+import { GetSessionUser } from './decorators/getUser';
 
 @SkipThrottle()
 @ApiTags('Auth')
@@ -149,7 +149,9 @@ export class AuthController {
   @ApiBadRequestResponse({})
   @ApiInternalServerErrorResponse({})
   @HttpCode(HttpStatus.OK)
-  async verifyEmailVerficationToken(@Param() params: CreateUserPasswordParamsDto) {
+  async verifyEmailVerficationToken(
+    @Param() params: CreateUserPasswordParamsDto,
+  ) {
     return await this.authService.verifyToken(
       params.token,
       TokenType.email_verification,
@@ -184,7 +186,10 @@ export class AuthController {
   @ApiBadRequestResponse({})
   @ApiInternalServerErrorResponse({})
   @HttpCode(HttpStatus.OK)
-  changePassword(@Body() body: ChangePasswordDto, @GetUser("id") userId: string) {
+  changePassword(
+    @Body() body: ChangePasswordDto,
+    @GetSessionUser('id') userId: string,
+  ) {
     return this.authService.changePassword(body, userId);
   }
 

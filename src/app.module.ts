@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -23,9 +24,24 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CronjobsModule } from './cronjobs/cronjobs.module';
+import { TermiiModule } from './termii/termii.module';
+import { JobstatusModule } from './jobstatus/jobstatus.module';
 
 @Module({
   imports: [
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => ({
+        connection: {
+          // host: configService.get<string>('REDIS_HOST'),
+          // port: configService.get<number>('REDIS_PORT'),
+          // password: configService.get<string>('REDIS_PASSWORD'),
+          // username: configService.get<string>('REDIS_USERNAME'),
+          url: configService.get<string>('REDIS_URL'),
+        },
+      }),
+    }),
     ThrottlerModule.forRoot([
       {
         ttl: 10000, // 15 minutes
@@ -57,6 +73,8 @@ import { CronjobsModule } from './cronjobs/cronjobs.module';
     OpenpaygoModule,
     FlutterwaveModule,
     CronjobsModule,
+    TermiiModule,
+    JobstatusModule,
   ],
   controllers: [AppController],
   providers: [

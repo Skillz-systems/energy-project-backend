@@ -14,6 +14,7 @@ import {
   ArrayNotEmpty,
   Min,
   Length,
+  IsBoolean,
 } from 'class-validator';
 import { IsObjectId } from 'class-validator-mongo-object-id';
 import {
@@ -159,7 +160,6 @@ export class SaleItemDto {
   @Type(() => SaleRecipientDto)
   saleRecipient?: SaleRecipientDto;
 }
-
 export class CreateSalesDto {
   @ApiProperty({
     description:
@@ -193,6 +193,15 @@ export class CreateSalesDto {
   @IsOptional()
   @IsString()
   bvn: string;
+
+  @IsBoolean()
+  @IsOptional()
+  @ApiPropertyOptional({
+    description:
+      'Whether financial margins should be applied to this sale or not',
+    example: true,
+  })
+  applyMargin?: boolean;
 
   @ApiProperty({
     description: 'An array of sale product items',

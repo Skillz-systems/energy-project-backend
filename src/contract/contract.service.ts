@@ -113,6 +113,7 @@ export class ContractService {
             customer: true,
             saleItems: {
               include: {
+                SaleRecipient: true,
                 product: {
                   include: {
                     inventories: {

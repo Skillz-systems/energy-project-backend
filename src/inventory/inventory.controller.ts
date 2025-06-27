@@ -35,6 +35,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { FetchInventoryQueryDto } from './dto/fetch-inventory.dto';
 import { CreateCategoryArrayDto } from './dto/create-category.dto';
 import { CreateInventoryBatchDto } from './dto/create-inventory-batch.dto';
+import { GetSessionUser } from '../auth/decorators/getUser';
 
 @SkipThrottle()
 @ApiTags('Inventory')
@@ -67,6 +68,7 @@ export class InventoryController {
   @UseInterceptors(FileInterceptor('inventoryImage'))
   async create(
     @Body() createInventoryDto: CreateInventoryDto,
+    @GetSessionUser('id') requestUserId: string,
     @UploadedFile(
       new ParseFilePipeBuilder()
         .addFileTypeValidator({ fileType: /(jpeg|jpg|png|svg)$/i })
@@ -75,6 +77,7 @@ export class InventoryController {
     file: Express.Multer.File,
   ) {
     return await this.inventoryService.createInventory(
+      requestUserId,
       createInventoryDto,
       file,
     );
@@ -92,9 +95,13 @@ export class InventoryController {
   @HttpCode(HttpStatus.CREATED)
   @Post('batch/create')
   async createInventoryBatch(
+    @GetSessionUser('id') requestUserId: string,
     @Body() createInventoryDto: CreateInventoryBatchDto,
   ) {
-    return await this.inventoryService.createInventoryBatch(createInventoryDto);
+    return await this.inventoryService.createInventoryBatch(
+      requestUserId,
+      createInventoryDto,
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)

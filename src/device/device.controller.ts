@@ -9,13 +9,17 @@ import {
   UseGuards,
   UploadedFile,
   HttpStatus,
-  ParseFilePipeBuilder,
   HttpCode,
   UseInterceptors,
   Query,
+  BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { DeviceService } from './device.service';
-import { CreateDeviceDto } from './dto/create-device.dto';
+import {
+  CreateBatchDeviceTokensDto,
+  CreateDeviceDto,
+} from './dto/create-device.dto';
 import { UpdateDeviceDto } from './dto/update-device.dto';
 import {
   ApiBearerAuth,
@@ -35,7 +39,10 @@ import { unlinkSync } from 'fs';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { ListDevicesQueryDto } from './dto/list-devices.dto';
+import { SkipThrottle } from '@nestjs/throttler';
+import { JobStatusService } from 'src/jobstatus/jobstatus.service';
 
+@SkipThrottle()
 @ApiTags('Devices')
 @Controller('device')
 @ApiBearerAuth('access_token')
@@ -49,7 +56,10 @@ import { ListDevicesQueryDto } from './dto/list-devices.dto';
   },
 })
 export class DeviceController {
-  constructor(private readonly deviceService: DeviceService) {}
+  constructor(
+    private readonly deviceService: DeviceService,
+    private readonly jobStatusService: JobStatusService,
+  ) {}
 
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
   @RolesAndPermissions({
@@ -64,19 +74,172 @@ export class DeviceController {
     }),
   )
   @Post('batch-upload')
-  async createBatchDevices(
-    @UploadedFile(
-      new ParseFilePipeBuilder()
-        .addFileTypeValidator({ fileType: /(csv|xlsx)$/i })
-        .build({ errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY }),
-    )
-    file: Express.Multer.File,
-  ) {
+  async createBatchDevices(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    const allowedTypes = ['.csv'];
+
+    const fileExtension = file.originalname
+      .toLowerCase()
+      .substring(file.originalname.lastIndexOf('.'));
+
+    if (!allowedTypes.includes(fileExtension)) {
+      throw new BadRequestException('Only CSV files are allowed (.csv)');
+    }
+
     const filePath = file.path;
     const upload = await this.deviceService.uploadBatchDevices(filePath);
     unlinkSync(filePath);
 
     return upload;
+  }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Sales}`],
+  })
+  @ApiBody({
+    type: CreateBatchDeviceTokensDto,
+    description: 'Json structure for request payload',
+  })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './files',
+      }),
+    }),
+  )
+  @Post('batch/generate-tokens')
+  async createBatchDeviceTokens(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    const allowedTypes = ['.csv'];
+    const fileExtension = file.originalname
+      .toLowerCase()
+      .substring(file.originalname.lastIndexOf('.'));
+
+    if (!allowedTypes.includes(fileExtension)) {
+      throw new BadRequestException('Only CSV files are allowed (.csv)');
+    }
+
+    // Queue the job instead of processing immediately
+    const result = await this.deviceService.queueBatchTokenGeneration(
+      file.path,
+    );
+
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Sales}`],
+  })
+  @Get('batch/job/:jobId/status')
+  async getBatchJobStatus(@Param('jobId') jobId: string) {
+    const status = await this.jobStatusService.getJobStatus(jobId);
+
+    if (!status) {
+      throw new NotFoundException('Job not found');
+    }
+
+    return status;
+  }
+
+  @Get('batch/job/:jobId/result')
+  async getBatchJobResult(@Param('jobId') jobId: string) {
+    try {
+      const result = await this.jobStatusService.getJobResult(jobId);
+      return result;
+    } catch (error) {
+      if (error.message === 'Job not found') {
+        throw new NotFoundException('Job not found');
+      }
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Sales}`],
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Device ID to update tokenable status',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        isTokenable: {
+          type: 'boolean',
+          description: 'Whether the device can generate tokens',
+          example: true,
+        },
+      },
+      required: ['isTokenable'],
+    },
+  })
+  @ApiOperation({ summary: 'Update device tokenable status' })
+  @HttpCode(HttpStatus.OK)
+  @Patch(':id/tokenable')
+  async updateDeviceTokenableStatus(
+    @Param('id') id: string,
+    @Body() body: { isTokenable: boolean },
+  ) {
+    const { isTokenable } = body;
+
+    if (isTokenable === undefined || isTokenable === null) {
+      throw new BadRequestException('isTokenable field is required');
+    }
+
+    return await this.deviceService.updateDeviceTokenableStatus(
+      id,
+      isTokenable,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Sales}`],
+  })
+  @ApiParam({
+    name: 'deviceId',
+    type: String,
+    description: 'Device ID',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        tokenDuration: {
+          type: 'number',
+          description: 'Token duration in days (-1 for forever token)',
+          example: 30,
+        },
+      },
+      required: ['tokenDuration'],
+    },
+  })
+  @Post(':deviceId/generate-token')
+  async generateSingleDeviceToken(
+    @Param('deviceId') deviceId: string,
+    @Body() body: { tokenDuration: number },
+  ) {
+    const { tokenDuration } = body;
+
+    if (tokenDuration === undefined || tokenDuration === null) {
+      throw new BadRequestException('Token duration is required');
+    }
+
+    return await this.deviceService.generateSingleDeviceToken(
+      deviceId,
+      tokenDuration,
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)

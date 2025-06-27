@@ -12,20 +12,24 @@ export class EmailService {
 
   async sendMail(value: IMail) {
     try {
+      console.log("hellyo from email service");
       await this.mailService.sendMail({
         ...value,
       });
+      console.log("hellyo from email233 service");
 
       return 'Email Sent Successfully';
     } catch (error) {
       console.log(error);
 
       // to remove the user being created when the mailing fails
-      await this.prisma.user.delete({
-        where: {
-          id: value.userId,
-        },
-      });
+      if (value.userId) {
+        await this.prisma.user.delete({
+          where: {
+            id: value.userId,
+          },
+        });
+      }
 
       throw error;
     }

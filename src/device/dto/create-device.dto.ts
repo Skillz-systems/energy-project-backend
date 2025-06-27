@@ -20,9 +20,7 @@ export class CreateDeviceDto {
 
   @ApiProperty({ description: 'Optional count', required: false })
   @IsString()
-  @MinLength(2)
-  @MinLength(2)
-  @MinLength(2)
+  @MinLength(1)
   @IsOptional()
   count?: string;
 
@@ -55,4 +53,10 @@ export class CreateDeviceDto {
     example: true,
   })
   isTokenable?: boolean;
+}
+
+
+export class CreateBatchDeviceTokensDto {
+  @ApiProperty({ type: 'file' })
+  file: Express.Multer.File;
 }

@@ -11,7 +11,7 @@ import { ContractService } from '../contract/contract.service';
 import { PaymentService } from '../payment/payment.service';
 import { PaginationQueryDto } from 'src/utils/dto/pagination.dto';
 import { BatchAllocation, ProcessedSaleItem } from './sales.interface';
-import { MESSAGES } from 'src/constants';
+import { CreateFinancialMarginDto } from './dto/create-financial-margins.dto';
 
 @Injectable()
 export class SalesService {
@@ -39,6 +39,7 @@ export class SalesService {
       const processedItem = await this.calculateItemPrice(
         item,
         financialSettings,
+        dto.applyMargin,
       );
       processedItems.push(processedItem);
     }
@@ -50,6 +51,21 @@ export class SalesService {
 
     const totalAmountToPay = processedItems.reduce(
       (sum, item) => sum + (item.installmentTotalPrice || item.totalPrice),
+      0,
+    );
+
+    const totalInstallmentStartingPrice = processedItems.reduce(
+      (sum, item) => sum + (item.installmentTotalPrice || 0),
+      0,
+    );
+
+    const totalInstallmentDuration = processedItems.reduce(
+      (sum, item) => sum + (item.duration || 0),
+      0,
+    );
+
+    const totalMonthlyPayment = processedItems.reduce(
+      (sum, item) => sum + (item.monthlyPayment || 0),
       0,
     );
 
@@ -79,6 +95,9 @@ export class SalesService {
           category: dto.category,
           customerId: dto.customerId,
           totalPrice: totalAmount,
+          installmentStartingPrice: totalInstallmentStartingPrice,
+          totalInstallmentDuration,
+          totalMonthlyPayment,
           status: SalesStatus.UNPAID,
           batchAllocations: {
             createMany: {
@@ -142,6 +161,9 @@ export class SalesService {
         }
       }
     });
+
+    const transactionRef = `sale-${sale.id}-${Date.now()}`;
+
     if (hasInstallmentItems) {
       const totalInitialPayment = processedItems
         .filter((item) => item.paymentMode === PaymentMode.INSTALLMENT)
@@ -160,10 +182,9 @@ export class SalesService {
       const tempAccountDetails =
         await this.paymentService.generateStaticAccount(
           sale.id,
-          5000,
           sale.customer.email,
-          '4', // duration
           dto.bvn,
+          transactionRef,
         );
       await this.prisma.installmentAccountDetails.create({
         data: {
@@ -183,10 +204,17 @@ export class SalesService {
       });
     }
 
-    return await this.paymentService.generatePaymentLink(
+    // return await this.paymentService.generatePaymentLink(
+    //   sale.id,
+    //   totalAmountToPay,
+    //   sale.customer.email,
+    // transactionRef
+    // );
+    return await this.paymentService.generatePaymentPayload(
       sale.id,
       totalAmountToPay,
       sale.customer.email,
+      transactionRef,
     );
   }
 
@@ -205,7 +233,11 @@ export class SalesService {
         sale: {
           include: { customer: true },
         },
+        devices: true,
         SaleRecipient: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
       },
       skip,
       take,
@@ -229,6 +261,13 @@ export class SalesService {
         sale: {
           include: {
             customer: true,
+            payment: true,
+            installmentAccountDetails: true,
+          },
+        },
+        devices: {
+          include: {
+            tokens: true,
           },
         },
         product: {
@@ -249,13 +288,45 @@ export class SalesService {
     return saleItem;
   }
 
+  async getSalesPaymentDetails(saleId: string) {
+    const sale = await this.prisma.sales.findFirst({
+      where: {
+        id: saleId,
+      },
+      include: {
+        customer: true,
+        saleItems: {
+          include: {
+            devices: true,
+          },
+        },
+      },
+    });
+
+    const transactionRef = `sale-${sale.id}-${Date.now()}`;
+
+    return await this.paymentService.generatePaymentPayload(
+      sale.id,
+      sale.installmentStartingPrice || sale.totalPrice,
+      sale.customer.email,
+      transactionRef,
+    );
+  }
+
   async getMargins() {
     return await this.prisma.financialSettings.findFirst();
+  }
+
+  async createFinMargin(body: CreateFinancialMarginDto) {
+    await this.prisma.financialSettings.create({
+      data: body,
+    });
   }
 
   private async calculateItemPrice(
     saleItem: SaleItemDto,
     financialSettings: any,
+    applyMargin: boolean,
   ): Promise<ProcessedSaleItem> {
     const product = await this.prisma.product.findUnique({
       where: { id: saleItem.productId },
@@ -282,6 +353,7 @@ export class SalesService {
     const { batchAllocations, totalBasePrice } = await this.processBatches(
       product,
       saleItem.quantity,
+      applyMargin,
     );
 
     // Add miscellaneous prices
@@ -306,7 +378,8 @@ export class SalesService {
     };
 
     if (saleItem.paymentMode === PaymentMode.ONE_OFF) {
-      processedItem.totalPrice *= 1 + financialSettings.outrightMargin;
+      if (applyMargin)
+        processedItem.totalPrice *= 1 + financialSettings.outrightMargin;
     } else {
       if (!saleItem.installmentDuration || !saleItem.installmentStartingPrice) {
         throw new BadRequestException(
@@ -317,21 +390,27 @@ export class SalesService {
       const principal = totalPrice;
       const monthlyInterestRate = financialSettings.monthlyInterest;
       const numberOfMonths = saleItem.installmentDuration;
-      const loanMargin = financialSettings.loanMargin;
+      const loanMargin = applyMargin ? financialSettings.loanMargin : 0;
 
       const totalInterest = principal * monthlyInterestRate * numberOfMonths;
       const totalWithMargin = (principal + totalInterest) * (1 + loanMargin);
 
-      if (totalWithMargin < saleItem.installmentStartingPrice) {
-        throw new BadRequestException(
-          `Starting price (${saleItem.installmentStartingPrice}) too large for installment payments`,
-        );
-      }
+      // if (totalWithMargin < saleItem.installmentStartingPrice) {
+      //   throw new BadRequestException(
+      //     `Starting price (${saleItem.installmentStartingPrice}) too large for installment payments`,
+      //   );
+      // }
+
+      const installmentTotalPrice = saleItem.installmentStartingPrice
+        ? (totalWithMargin * Number(saleItem.installmentStartingPrice)) / 100
+        : 0;
 
       processedItem.totalPrice = totalWithMargin;
-      processedItem.installmentTotalPrice = saleItem.installmentStartingPrice;
+      // processedItem.duration = numberOfMonths;
+      // processedItem.installmentTotalPrice = installmentTotalPrice;
+      processedItem.installmentTotalPrice = installmentTotalPrice;
       processedItem.monthlyPayment =
-        (totalWithMargin - saleItem.installmentStartingPrice) / numberOfMonths;
+        (totalWithMargin - installmentTotalPrice) / numberOfMonths;
     }
 
     return processedItem;
@@ -340,6 +419,7 @@ export class SalesService {
   async processBatches(
     product: any,
     requiredQuantity: number,
+    applyMargin: boolean,
   ): Promise<{ batchAllocations: BatchAllocation[]; totalBasePrice: number }> {
     const batchAllocations: BatchAllocation[] = [];
 
@@ -357,14 +437,16 @@ export class SalesService {
           remainingQuantity,
         );
 
+        const batchPrice = applyMargin ? batch.costOfItem || 0 : batch.price;
+
         if (quantityFromBatch > 0) {
           batchAllocations.push({
             batchId: batch.id,
             quantity: quantityFromBatch,
-            price: batch.price,
+            price: batchPrice,
           });
 
-          totalBasePrice += batch.price * quantityFromBatch;
+          totalBasePrice += batchPrice * quantityFromBatch;
 
           remainingQuantity -= quantityFromBatch;
         }

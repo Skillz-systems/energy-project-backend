@@ -1,5 +1,5 @@
 import { Exclude } from 'class-transformer';
-import { Inventory, InventoryClass, InventoryStatus } from '@prisma/client';
+import { Inventory, User} from '@prisma/client';
 
 export class InventoryBatchEntity implements Partial<Inventory> {
   costOfItem: number;
@@ -7,11 +7,10 @@ export class InventoryBatchEntity implements Partial<Inventory> {
   pricbatchNumber: number;
   numberOfStock: number;
   remainingQuantity: number;
-
-  @Exclude()
+  creatorDetails: User;
   createdAt: Date;
-  @Exclude()
   updatedAt: Date;
+
   @Exclude()
   deletedAt: Date;
 

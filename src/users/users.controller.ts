@@ -31,7 +31,7 @@ import { ActionEnum, SubjectEnum, User } from '@prisma/client';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { MESSAGES } from '../constants';
 import { ListUsersQueryDto } from './dto/list-users.dto';
-import { GetUser } from '../auth/decorators/getUser';
+import { GetSessionUser } from '../auth/decorators/getUser';
 import { RolesAndPermissions } from '../auth/decorators/roles.decorator';
 
 @SkipThrottle()
@@ -82,7 +82,7 @@ export class UsersController {
   })
   async updateUser(
     // @Param('id') id: string,
-    @GetUser('id') id: string,
+    @GetSessionUser('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
   ): Promise<User> {
     if (Object.keys(updateUserDto).length === 0) {
@@ -131,7 +131,7 @@ export class UsersController {
   @ApiOkResponse({
     type: UserEntity,
   })
-  async fetchUser(@GetUser('id') id: string): Promise<User> {
+  async fetchUser(@GetSessionUser('id') id: string): Promise<User> {
     return new UserEntity(await this.usersService.fetchUser(id));
   }
 

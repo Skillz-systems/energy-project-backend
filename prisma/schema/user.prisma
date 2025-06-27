@@ -26,9 +26,10 @@ model User {
 
   agentDetails Agent?
 
-  createdProducts  Product[]
-  createdCustomers Customer[]
-  createdSales     Sales[]
+  createdProducts         Product[]
+  createdCustomers        Customer[]
+  createdSales            Sales[]
+  createdInventoryBatches InventoryBatch[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

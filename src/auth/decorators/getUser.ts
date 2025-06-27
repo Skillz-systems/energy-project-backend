@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { User } from '../interface/user.interface';
 
-export const GetUser = createParamDecorator(
+export const GetSessionUser = createParamDecorator(
   (data: keyof User | undefined, ctx: ExecutionContext) => {
     const request = ctx.switchToHttp().getRequest();
 

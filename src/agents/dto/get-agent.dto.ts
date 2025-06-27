@@ -1,6 +1,5 @@
-import { IsOptional, IsString, IsDateString, IsInt, Min, IsEnum } from 'class-validator';
+import { IsOptional, IsString, IsDateString, IsEnum } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 import { UserStatus } from '@prisma/client';
 
 export class GetAgentsDto {
@@ -21,12 +20,39 @@ export class GetAgentsDto {
   @IsOptional()
   @IsString()
   limit?: string;
-  
+
   @ApiPropertyOptional({ description: 'Filter by status' })
   @IsOptional()
   @IsString()
   @IsEnum(UserStatus)
   status?: UserStatus;
+
+  @ApiPropertyOptional({
+    description: 'Search agent by name, address, long., lat.',
+    type: String,
+    example: '',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({
+    description: 'Field to sort by',
+    type: String,
+    example: '',
+  })
+  @IsOptional()
+  @IsString()
+  sortField?: string;
+
+  @ApiPropertyOptional({
+    description: 'Sort order (asc or desc)',
+    enum: ['asc', 'desc'],
+    example: '',
+  })
+  @IsOptional()
+  @IsString()
+  sortOrder?: 'asc' | 'desc';
 
   @ApiPropertyOptional({ description: 'Filter by creation date (ISO format)' })
   @IsOptional()

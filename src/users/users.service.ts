@@ -57,8 +57,8 @@ export class UsersService {
         status ? { status } : {},
         isBlocked !== undefined ? { isBlocked } : {},
         roleId ? { roleId } : {},
-        createdAt ? { createdAt: new Date(createdAt) } : {},
-        updatedAt ? { updatedAt: new Date(updatedAt) } : {},
+        createdAt ? { createdAt: { gte: new Date(createdAt) } } : {},
+        updatedAt ? { updatedAt: { gte: new Date(updatedAt) } } : {},
       ],
     };
 
@@ -76,12 +76,10 @@ export class UsersService {
     const skip = (pageNumber - 1) * limitNumber;
     const take = limitNumber;
 
-    const orderBy = sortField
-      ? {
-          [sortField]: sortOrder || 'asc',
-        }
-      : undefined;
-
+    const orderBy = {
+      [sortField || 'createdAt']: sortOrder || 'asc',
+    };
+    
     const result = await this.prisma.user.findMany({
       skip,
       take,

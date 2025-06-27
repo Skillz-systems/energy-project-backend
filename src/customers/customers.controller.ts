@@ -28,7 +28,7 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
-import { GetUser } from '../auth/decorators/getUser';
+import { GetSessionUser } from '../auth/decorators/getUser';
 import { UserEntity } from '../users/entity/user.entity';
 import { ListCustomersQueryDto } from './dto/list-customers.dto';
 
@@ -64,7 +64,7 @@ export class CustomersController {
   @Post('create')
   async create(
     @Body() createCustomersDto: CreateCustomerDto,
-    @GetUser('id') requestUserId: string,
+    @GetSessionUser('id') requestUserId: string,
   ) {
     return await this.customersService.createCustomer(
       requestUserId,

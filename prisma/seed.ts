@@ -4,131 +4,131 @@ import { faker } from '@faker-js/faker';
 const prisma = new PrismaClient();
 
 async function main() {
-  await prisma.contract.createMany({
-    data: Array.from({ length: 10 }).map(() => ({
-      initialAmountPaid: faker.number.float({ min: 0, max: 100000 }),
+  // await prisma.contract.createMany({
+  //   data: Array.from({ length: 10 }).map(() => ({
+  //     initialAmountPaid: faker.number.float({ min: 0, max: 100000 }),
 
-      nextOfKinFullName: faker.person.fullName(),
-      nextOfKinRelationship: faker.helpers.arrayElement([
-        'Father',
-        'Mother',
-        'Brother',
-        'Sister',
-      ]),
-      nextOfKinPhoneNumber: faker.phone.number(),
-      nextOfKinHomeAddress: faker.location.streetAddress(),
-      nextOfKinEmail: faker.internet.email(),
-      nextOfKinDateOfBirth: faker.date.past(),
-      nextOfKinNationality: faker.location.country(),
+  //     nextOfKinFullName: faker.person.fullName(),
+  //     nextOfKinRelationship: faker.helpers.arrayElement([
+  //       'Father',
+  //       'Mother',
+  //       'Brother',
+  //       'Sister',
+  //     ]),
+  //     nextOfKinPhoneNumber: faker.phone.number(),
+  //     nextOfKinHomeAddress: faker.location.streetAddress(),
+  //     nextOfKinEmail: faker.internet.email(),
+  //     nextOfKinDateOfBirth: faker.date.past(),
+  //     nextOfKinNationality: faker.location.country(),
 
-      guarantorFullName: faker.person.fullName(),
-      guarantorPhoneNumber: faker.phone.number(),
-      guarantorHomeAddress: faker.location.streetAddress(),
-      guarantorEmail: faker.internet.email(),
-      guarantorIdType: faker.helpers.arrayElement([
-        'Nin',
-        'Passport',
-        'Driver_License',
-        'Voter_ID',
-      ]),
-      guarantorIdNumber: faker.string.uuid(),
-      guarantorIdIssuingCountry: faker.location.country(),
-      guarantorIdIssueDate: faker.date.past(),
-      guarantorIdExpirationDate: faker.date.future(),
-      guarantorNationality: faker.location.country(),
-      guarantorDateOfBirth: faker.date.past(),
+  //     guarantorFullName: faker.person.fullName(),
+  //     guarantorPhoneNumber: faker.phone.number(),
+  //     guarantorHomeAddress: faker.location.streetAddress(),
+  //     guarantorEmail: faker.internet.email(),
+  //     guarantorIdType: faker.helpers.arrayElement([
+  //       'Nin',
+  //       'Passport',
+  //       'Driver_License',
+  //       'Voter_ID',
+  //     ]),
+  //     guarantorIdNumber: faker.string.uuid(),
+  //     guarantorIdIssuingCountry: faker.location.country(),
+  //     guarantorIdIssueDate: faker.date.past(),
+  //     guarantorIdExpirationDate: faker.date.future(),
+  //     guarantorNationality: faker.location.country(),
+  //     guarantorDateOfBirth: faker.date.past(),
 
-      idType: faker.helpers.arrayElement([
-        'Nin',
-        'Passport',
-        'Driver_License',
-        'Voter_ID',
-      ]),
-      idNumber: faker.string.uuid(),
-      issuingCountry: faker.location.country(),
-      issueDate: faker.date.past(),
-      expirationDate: faker.date.future(),
-      fullNameAsOnID: faker.person.fullName(),
-      addressAsOnID: faker.location.streetAddress(),
+  //     idType: faker.helpers.arrayElement([
+  //       'Nin',
+  //       'Passport',
+  //       'Driver_License',
+  //       'Voter_ID',
+  //     ]),
+  //     idNumber: faker.string.uuid(),
+  //     issuingCountry: faker.location.country(),
+  //     issueDate: faker.date.past(),
+  //     expirationDate: faker.date.future(),
+  //     fullNameAsOnID: faker.person.fullName(),
+  //     addressAsOnID: faker.location.streetAddress(),
 
-      signedContractUrl: faker.internet.url(),
-      signedAt: faker.date.recent(),
-    })),
-  });
+  //     signedContractUrl: faker.internet.url(),
+  //     signedAt: faker.date.recent(),
+  //   })),
+  // });
 
-  // Retrieve inserted contracts
-  const contracts = await prisma.contract.findMany();
-  const contractIds = contracts.map((contract) => contract.id);
+  // // Retrieve inserted contracts
+  // const contracts = await prisma.contract.findMany();
+  // const contractIds = contracts.map((contract) => contract.id);
 
-  const customers = await prisma.customer.findMany();
-  const customerIds = customers.map((customer) => customer.id);
+  // const customers = await prisma.customer.findMany();
+  // const customerIds = customers.map((customer) => customer.id);
 
-  const users = await prisma.user.findMany();
-  const userIds = users.map((user) => user.id);
+  // const users = await prisma.user.findMany();
+  // const userIds = users.map((user) => user.id);
 
-  // Seed Sales
-  await prisma.sales.createMany({
-    data: Array.from({ length: 10 }).map(() => ({
-      category: faker.helpers.arrayElement(['INVENTORY', 'PRODUCT']),
-      status: faker.helpers.arrayElement([
-        'IN_INSTALLMENT',
-        'COMPLETED',
-        'UNPAID',
-      ]),
-      customerId: faker.helpers.arrayElement(customerIds), // Use existing user/customer IDs
-      creatorId: faker.helpers.arrayElement(userIds),
-      totalPrice: faker.number.float({ min: 1000, max: 50000 }),
-      totalPaid: faker.number.float({ min: 0, max: 50000 }),
-      installmentAccountDetailsId: null,
-      deliveredAccountDetails: faker.datatype.boolean(),
-      contractId: faker.helpers.arrayElement(contractIds),
-    })),
-  });
+  // // Seed Sales
+  // await prisma.sales.createMany({
+  //   data: Array.from({ length: 10 }).map(() => ({
+  //     category: faker.helpers.arrayElement(['INVENTORY', 'PRODUCT']),
+  //     status: faker.helpers.arrayElement([
+  //       'IN_INSTALLMENT',
+  //       'COMPLETED',
+  //       'UNPAID',
+  //     ]),
+  //     customerId: faker.helpers.arrayElement(customerIds), // Use existing user/customer IDs
+  //     creatorId: faker.helpers.arrayElement(userIds),
+  //     totalPrice: faker.number.float({ min: 1000, max: 50000 }),
+  //     totalPaid: faker.number.float({ min: 0, max: 50000 }),
+  //     installmentAccountDetailsId: null,
+  //     deliveredAccountDetails: faker.datatype.boolean(),
+  //     contractId: faker.helpers.arrayElement(contractIds),
+  //   })),
+  // });
 
-  // Retrieve inserted sales
-  const sales = await prisma.sales.findMany();
-  const salesIds = sales.map((sale) => sale.id);
+  // // Retrieve inserted sales
+  // const sales = await prisma.sales.findMany();
+  // const salesIds = sales.map((sale) => sale.id);
 
-  // Seed Installment Account Details
-  await prisma.installmentAccountDetails.createMany({
-    data: salesIds.map(() => ({
-      flw_ref: faker.string.uuid(),
-      order_ref: faker.string.uuid(),
-      account_number: faker.finance.accountNumber(),
-      account_status: 'ACTIVE',
-      frequency: faker.number.int({ min: 1, max: 12 }),
-      bank_name: faker.company.name(),
-      expiry_date: faker.date.future().toISOString(),
-      note: faker.lorem.sentence(),
-      amount: faker.finance.amount(),
-    })),
-  });
+  // // Seed Installment Account Details
+  // await prisma.installmentAccountDetails.createMany({
+  //   data: salesIds.map(() => ({
+  //     flw_ref: faker.string.uuid(),
+  //     order_ref: faker.string.uuid(),
+  //     account_number: faker.finance.accountNumber(),
+  //     account_status: 'ACTIVE',
+  //     frequency: faker.number.int({ min: 1, max: 12 }),
+  //     bank_name: faker.company.name(),
+  //     expiry_date: faker.date.future().toISOString(),
+  //     note: faker.lorem.sentence(),
+  //     amount: faker.finance.amount(),
+  //   })),
+  // });
 
-  // Seed Sale Items
-  const productIds = await prisma.product.findMany();
-  const productIdsList = productIds.map((product) => product.id);
+  // // Seed Sale Items
+  // const productIds = await prisma.product.findMany();
+  // const productIdsList = productIds.map((product) => product.id);
 
-  await prisma.saleItem.createMany({
-    data: Array.from({ length: 20 }).map(() => ({
-      productId: faker.helpers.arrayElement(productIdsList),
-      quantity: faker.number.int({ min: 1, max: 5 }),
-      saleId: faker.helpers.arrayElement(salesIds),
-      discount: faker.number.float({ min: 0, max: 50 }),
-      totalPrice: faker.number.float({ min: 100, max: 1000 }),
-      paymentMode: faker.helpers.arrayElement(['ONE_OFF', 'INSTALLMENT']),
-    })),
-  });
+  // await prisma.saleItem.createMany({
+  //   data: Array.from({ length: 20 }).map(() => ({
+  //     productId: faker.helpers.arrayElement(productIdsList),
+  //     quantity: faker.number.int({ min: 1, max: 5 }),
+  //     saleId: faker.helpers.arrayElement(salesIds),
+  //     discount: faker.number.float({ min: 0, max: 50 }),
+  //     totalPrice: faker.number.float({ min: 100, max: 1000 }),
+  //     paymentMode: faker.helpers.arrayElement(['ONE_OFF', 'INSTALLMENT']),
+  //   })),
+  // });
 
-  // Seed Sale Recipients
-  await prisma.saleRecipient.createMany({
-    data: Array.from({ length: 10 }).map(() => ({
-      firstname: faker.person.firstName(),
-      lastname: faker.person.lastName(),
-      address: faker.location.streetAddress(),
-      phone: faker.phone.number(),
-      email: faker.internet.email(),
-    })),
-  });
+  // // Seed Sale Recipients
+  // await prisma.saleRecipient.createMany({
+  //   data: Array.from({ length: 10 }).map(() => ({
+  //     firstname: faker.person.firstName(),
+  //     lastname: faker.person.lastName(),
+  //     address: faker.location.streetAddress(),
+  //     phone: faker.phone.number(),
+  //     email: faker.internet.email(),
+  //   })),
+  // });
 
   // await prisma.financialSettings.deleteMany();
   // await prisma.financialSettings.createMany({
@@ -272,11 +272,11 @@ async function main() {
   //   })),
   // });
 
-  // Retrieve inserted agents
+  // // Retrieve inserted agents
   // const agents = await prisma.agent.findMany();
   // const agentIds = agents.map((agent) => agent.id);
 
-  // // Seed Customers
+  // Seed Customers
   // await prisma.customer.deleteMany();
   // await prisma.customer.createMany({
   //   data: Array.from({ length: 10 }).map(() => ({
@@ -291,7 +291,18 @@ async function main() {
   //     type: 'lead',
   //   })),
   // });
-
+await prisma.$runCommandRaw({
+  update: 'InstallmentAccountDetails',
+  updates: [
+    {
+      q: { createdAt: { $type: 'string' } }, // Find where 'createdAt' is a string
+      u: [
+        { $set: { createdAt: { $toDate: '$createdAt' } } }, // Convert to Date
+      ],
+      multi: true,
+    },
+  ],
+});
   console.log('Seeding completed successfully!');
 }
 
