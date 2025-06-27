@@ -9,11 +9,11 @@ import {
   UseGuards,
   UploadedFile,
   HttpStatus,
-  ParseFilePipeBuilder,
   HttpCode,
   UseInterceptors,
   Query,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { DeviceService } from './device.service';
 import {
@@ -40,6 +40,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { ListDevicesQueryDto } from './dto/list-devices.dto';
 import { SkipThrottle } from '@nestjs/throttler';
+import { JobStatusService } from 'src/jobstatus/jobstatus.service';
 
 @SkipThrottle()
 @ApiTags('Devices')
@@ -55,7 +56,10 @@ import { SkipThrottle } from '@nestjs/throttler';
   },
 })
 export class DeviceController {
-  constructor(private readonly deviceService: DeviceService) {}
+  constructor(
+    private readonly deviceService: DeviceService,
+    private readonly jobStatusService: JobStatusService,
+  ) {}
 
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
   @RolesAndPermissions({
@@ -84,7 +88,6 @@ export class DeviceController {
     if (!allowedTypes.includes(fileExtension)) {
       throw new BadRequestException('Only CSV files are allowed (.csv)');
     }
-
 
     const filePath = file.path;
     const upload = await this.deviceService.uploadBatchDevices(filePath);
@@ -116,7 +119,6 @@ export class DeviceController {
     }
 
     const allowedTypes = ['.csv'];
-
     const fileExtension = file.originalname
       .toLowerCase()
       .substring(file.originalname.lastIndexOf('.'));
@@ -125,17 +127,80 @@ export class DeviceController {
       throw new BadRequestException('Only CSV files are allowed (.csv)');
     }
 
-    const filePath = file.path;
-    try {
-      const upload = await this.deviceService.createBatchDeviceTokens(filePath);
-      return upload;
-    } finally {
-      try {
-        unlinkSync(filePath);
-      } catch (error) {
-        console.warn('Failed to delete uploaded file:', error);
-      }
+    // Queue the job instead of processing immediately
+    const result = await this.deviceService.queueBatchTokenGeneration(
+      file.path,
+    );
+
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Sales}`],
+  })
+  @Get('batch/job/:jobId/status')
+  async getBatchJobStatus(@Param('jobId') jobId: string) {
+    const status = await this.jobStatusService.getJobStatus(jobId);
+
+    if (!status) {
+      throw new NotFoundException('Job not found');
     }
+
+    return status;
+  }
+
+  @Get('batch/job/:jobId/result')
+  async getBatchJobResult(@Param('jobId') jobId: string) {
+    try {
+      const result = await this.jobStatusService.getJobResult(jobId);
+      return result;
+    } catch (error) {
+      if (error.message === 'Job not found') {
+        throw new NotFoundException('Job not found');
+      }
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Sales}`],
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Device ID to update tokenable status',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        isTokenable: {
+          type: 'boolean',
+          description: 'Whether the device can generate tokens',
+          example: true,
+        },
+      },
+      required: ['isTokenable'],
+    },
+  })
+  @ApiOperation({ summary: 'Update device tokenable status' })
+  @HttpCode(HttpStatus.OK)
+  @Patch(':id/tokenable')
+  async updateDeviceTokenableStatus(
+    @Param('id') id: string,
+    @Body() body: { isTokenable: boolean },
+  ) {
+    const { isTokenable } = body;
+
+    if (isTokenable === undefined || isTokenable === null) {
+      throw new BadRequestException('isTokenable field is required');
+    }
+
+    return await this.deviceService.updateDeviceTokenableStatus(
+      id,
+      isTokenable,
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)

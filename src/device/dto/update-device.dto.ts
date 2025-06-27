@@ -44,4 +44,13 @@ export class UpdateDeviceDto {
   @IsString()
   @IsOptional()
   firmwareVersion?: string;
+
+  @ApiProperty({
+    description: 'Whether the device can generate tokens',
+    required: false,
+    example: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  isTokenable?: boolean;
 }
