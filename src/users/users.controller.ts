@@ -42,7 +42,7 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
   @RolesAndPermissions({
-    permissions: [`${ActionEnum.manage}:${SubjectEnum.Customers}`],
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.User}`],
   })
   @Get()
   @ApiBearerAuth('access_token')
@@ -95,7 +95,7 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
   @RolesAndPermissions({
-    permissions: [`${ActionEnum.manage}:${SubjectEnum.Customers}`],
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.User}`],
   })
   @Patch(':id')
   @ApiBearerAuth('access_token')
@@ -137,7 +137,7 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
   @RolesAndPermissions({
-    permissions: [`${ActionEnum.manage}:${SubjectEnum.Customers}`],
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.User}`],
   })
   @ApiParam({
     name: 'id',
@@ -158,7 +158,7 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
   @RolesAndPermissions({
-    permissions: [`${ActionEnum.manage}:${SubjectEnum.Customers}`],
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.User}`],
   })
   @ApiParam({
     name: 'id',

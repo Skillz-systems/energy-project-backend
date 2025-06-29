@@ -260,15 +260,17 @@ export class PaymentService {
     console.log({ deviceTokens });
 
     if (deviceTokens.length) {
-      await this.Email.sendMail({
-        to: sale.customer.email,
-        from: this.config.get<string>('MAIL_FROM'),
-        subject: `Here are your device tokens`,
-        template: './device-tokens',
-        context: {
-          tokens: JSON.stringify(deviceTokens, undefined, 4),
-        },
-      });
+      if (sale.customer.email) {
+        await this.Email.sendMail({
+          to: sale.customer.email,
+          from: this.config.get<string>('MAIL_FROM'),
+          subject: `Here are your device tokens`,
+          template: './device-tokens',
+          context: {
+            tokens: JSON.stringify(deviceTokens, undefined, 4),
+          },
+        });
+      }
 
       if (sale.customer.phone) {
         try {
@@ -287,15 +289,21 @@ export class PaymentService {
     }
 
     if (sale.installmentAccountDetailsId && !sale.deliveredAccountDetails) {
-      await this.Email.sendMail({
-        to: sale.customer.email,
-        from: this.config.get<string>('MAIL_FROM'),
-        subject: `Here is your account details for installment payments`,
-        template: './installment-account-details',
-        context: {
-          details: JSON.stringify(sale.installmentAccountDetails, undefined, 4),
-        },
-      });
+      if (sale.customer.email) {
+        await this.Email.sendMail({
+          to: sale.customer.email,
+          from: this.config.get<string>('MAIL_FROM'),
+          subject: `Here is your account details for installment payments`,
+          template: './installment-account-details',
+          context: {
+            details: JSON.stringify(
+              sale.installmentAccountDetails,
+              undefined,
+              4,
+            ),
+          },
+        });
+      }
 
       if (sale.customer.phone) {
         try {

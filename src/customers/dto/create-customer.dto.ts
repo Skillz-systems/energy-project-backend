@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { AddressType } from '@prisma/client';
+import { AddressType, IDType, CustomerType } from '@prisma/client';
 import {
   IsNotEmpty,
   IsOptional,
@@ -26,13 +26,13 @@ export class CreateCustomerDto {
   @IsString()
   lastname: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'The email of the customer',
     example: 'francisalexander000@gmail.com',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
 
   @ApiProperty({
     description: 'The phone number of the customer',
@@ -45,12 +45,54 @@ export class CreateCustomerDto {
   phone: string;
 
   @ApiProperty({
+    description: 'The alternate phone number of the customer',
+    maxLength: 15,
+    example: '+1234567891',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @Length(1, 15)
+  alternatePhone: string;
+
+  @ApiProperty({
+    description: 'Gender of the customer',
+    example: 'Male',
+  })
+  @IsNotEmpty()
+  @IsString()
+  gender?: string;
+
+  @ApiProperty({
     enum: AddressType,
     example: 'HOME',
   })
   @IsNotEmpty()
   @IsEnum(AddressType)
   addressType: AddressType;
+
+  @ApiProperty({
+    description: 'Installation address of the customer',
+    example: '123 Main Street, Apartment 4B',
+  })
+  @IsNotEmpty()
+  @IsString()
+  installationAddress: string;
+
+  @ApiProperty({
+    description: 'Local Government Area',
+    example: 'Ikeja',
+  })
+  @IsNotEmpty()
+  @IsString()
+  lga: string;
+
+  @ApiProperty({
+    description: 'State',
+    example: 'Lagos',
+  })
+  @IsNotEmpty()
+  @IsString()
+  state: string;
 
   @ApiProperty({
     description: 'The location of the customer',
@@ -77,4 +119,45 @@ export class CreateCustomerDto {
   @IsOptional()
   @IsString()
   latitude?: string;
+
+  @ApiPropertyOptional({
+    enum: IDType,
+    description: 'Type of ID document',
+    example: 'NATIONAL_ID',
+  })
+  @IsOptional()
+  @IsEnum(IDType)
+  idType?: IDType;
+
+  @ApiPropertyOptional({
+    description: 'ID number',
+    example: '12345678901',
+  })
+  @IsOptional()
+  @IsString()
+  idNumber?: string;
+
+  @ApiPropertyOptional({
+    enum: CustomerType,
+    description: 'Customer type',
+    example: 'lead',
+    default: 'lead',
+  })
+  @IsOptional()
+  @IsEnum(CustomerType)
+  type?: CustomerType;
+
+  @ApiPropertyOptional({
+    type: 'file',
+    description: 'Customer passport photo file',
+    format: 'binary',
+  })
+  passportPhoto?: Express.Multer.File;
+
+  @ApiPropertyOptional({
+    type: 'file',
+    description: 'Customer ID image file',
+    format: 'binary',
+  })
+  idImage?: Express.Multer.File;
 }

@@ -73,14 +73,22 @@ export class SalesService {
       (item) => item.paymentMode === PaymentMode.INSTALLMENT,
     );
 
-    if (hasInstallmentItems && !dto.bvn) {
-      throw new BadRequestException(`Bvn is required for installment payments`);
-    }
+    // if (hasInstallmentItems && !dto.bvn) {
+    //   throw new BadRequestException(`Bvn is required for installment payments`);
+    // }
+    // if (
+    //   hasInstallmentItems &&
+    //   (!dto.nextOfKinDetails ||
+    //     !dto.identificationDetails ||
+    //     !dto.guarantorDetails)
+    // ) {
+    //   throw new BadRequestException(
+    //     'Contract details are required for installment payments',
+    //   );
+    // }
     if (
       hasInstallmentItems &&
-      (!dto.nextOfKinDetails ||
-        !dto.identificationDetails ||
-        !dto.guarantorDetails)
+      (!dto.identificationDetails || !dto.guarantorDetails)
     ) {
       throw new BadRequestException(
         'Contract details are required for installment payments',
@@ -179,29 +187,31 @@ export class SalesService {
         data: { contractId: contract.id },
       });
 
-      const tempAccountDetails =
-        await this.paymentService.generateStaticAccount(
-          sale.id,
-          sale.customer.email,
-          dto.bvn,
-          transactionRef,
-        );
-      await this.prisma.installmentAccountDetails.create({
-        data: {
-          sales: {
-            connect: { id: sale.id },
+      if (dto.bvn) {
+        const tempAccountDetails =
+          await this.paymentService.generateStaticAccount(
+            sale.id,
+            sale.customer.email || `${sale.customer.phone}@gmail.com`,
+            dto.bvn,
+            transactionRef,
+          );
+        await this.prisma.installmentAccountDetails.create({
+          data: {
+            sales: {
+              connect: { id: sale.id },
+            },
+            flw_ref: tempAccountDetails.flw_ref,
+            order_ref: tempAccountDetails.order_ref,
+            account_number: tempAccountDetails.account_number,
+            account_status: tempAccountDetails.account_status,
+            frequency: tempAccountDetails.frequency,
+            bank_name: tempAccountDetails.bank_name,
+            expiry_date: tempAccountDetails.expiry_date,
+            note: tempAccountDetails.note,
+            amount: tempAccountDetails.amount,
           },
-          flw_ref: tempAccountDetails.flw_ref,
-          order_ref: tempAccountDetails.order_ref,
-          account_number: tempAccountDetails.account_number,
-          account_status: tempAccountDetails.account_status,
-          frequency: tempAccountDetails.frequency,
-          bank_name: tempAccountDetails.bank_name,
-          expiry_date: tempAccountDetails.expiry_date,
-          note: tempAccountDetails.note,
-          amount: tempAccountDetails.amount,
-        },
-      });
+        });
+      }
     }
 
     // return await this.paymentService.generatePaymentLink(
@@ -213,7 +223,7 @@ export class SalesService {
     return await this.paymentService.generatePaymentPayload(
       sale.id,
       totalAmountToPay,
-      sale.customer.email,
+      sale.customer.email || `${sale.customer.phone}@gmail.com`,
       transactionRef,
     );
   }
@@ -308,7 +318,7 @@ export class SalesService {
     return await this.paymentService.generatePaymentPayload(
       sale.id,
       sale.installmentStartingPrice || sale.totalPrice,
-      sale.customer.email,
+      sale.customer.email || `${sale.customer.phone}@gmail.com`,
       transactionRef,
     );
   }
@@ -369,7 +379,9 @@ export class SalesService {
       ? (totalBasePrice * Number(saleItem.discount)) / 100
       : 0;
 
-    const totalPrice = totalBasePrice - discountAmount + miscTotal;
+    const priceAfterDiscount = totalBasePrice - discountAmount;
+
+    const totalPrice = priceAfterDiscount + miscTotal;
 
     const processedItem: ProcessedSaleItem = {
       ...saleItem,
@@ -388,7 +400,9 @@ export class SalesService {
       }
 
       const principal = totalPrice;
-      const monthlyInterestRate = financialSettings.monthlyInterest;
+      const monthlyInterestRate = applyMargin
+        ? financialSettings.monthlyInterest
+        : 0;
       const numberOfMonths = saleItem.installmentDuration;
       const loanMargin = applyMargin ? financialSettings.loanMargin : 0;
 
@@ -401,16 +415,17 @@ export class SalesService {
       //   );
       // }
 
-      const installmentTotalPrice = saleItem.installmentStartingPrice
-        ? (totalWithMargin * Number(saleItem.installmentStartingPrice)) / 100
-        : 0;
+      // const installmentTotalPrice = saleItem.installmentStartingPrice
+      //   ? (totalWithMargin * Number(saleItem.installmentStartingPrice)) / 100
+      //   : 0;
+      const installmentTotalPrice = saleItem.installmentStartingPrice;
 
       processedItem.totalPrice = totalWithMargin;
       // processedItem.duration = numberOfMonths;
       // processedItem.installmentTotalPrice = installmentTotalPrice;
       processedItem.installmentTotalPrice = installmentTotalPrice;
       processedItem.monthlyPayment =
-        (totalWithMargin - installmentTotalPrice) / numberOfMonths;
+        (totalWithMargin - installmentTotalPrice) / (numberOfMonths - 1);
     }
 
     return processedItem;

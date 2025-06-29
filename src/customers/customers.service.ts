@@ -11,31 +11,93 @@ import { plainToInstance } from 'class-transformer';
 import { UserEntity } from '../users/entity/user.entity';
 import { ListCustomersQueryDto } from './dto/list-customers.dto';
 import { getLastNDaysDate } from '../utils/helpers.util';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { UpdateCustomerDto } from './dto/update-customer.dto';
 
 @Injectable()
 export class CustomersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cloudinary: CloudinaryService,
+  ) {}
+
+  private async uploadCustomerImage(file: Express.Multer.File) {
+    return await this.cloudinary.uploadFile(file).catch((e) => {
+      throw e;
+    });
+  }
 
   async createCustomer(
     requestUserId: string,
     createCustomerDto: CreateCustomerDto,
+    passportPhoto?: Express.Multer.File,
+    idImage?: Express.Multer.File,
   ) {
-    const { longitude, latitude, email, ...rest } = createCustomerDto;
+    const {
+      longitude,
+      latitude,
+      email,
+      firstname,
+      lastname,
+      phone,
+      alternatePhone,
+      gender,
+      addressType,
+      installationAddress,
+      lga,
+      state,
+      location,
+      idType,
+      idNumber,
+      type,
+      ...rest
+    } = createCustomerDto;
 
-    const existingCustomer = await this.prisma.customer.findFirst({
-      where: { email },
-    });
+    if (email) {
+      const existingCustomer = await this.prisma.customer.findFirst({
+        where: { email },
+      });
 
-    if (existingCustomer) {
-      throw new BadRequestException(MESSAGES.EMAIL_EXISTS);
+      if (existingCustomer) {
+        throw new BadRequestException(MESSAGES.EMAIL_EXISTS);
+      }
+    }
+
+    // Upload images if provided
+    let passportPhotoUrl: string | undefined;
+    let idImageUrl: string | undefined;
+
+    if (passportPhoto) {
+      const uploadResult = await this.uploadCustomerImage(passportPhoto);
+      passportPhotoUrl = uploadResult.secure_url;
+    }
+
+    if (idImage) {
+      const uploadResult = await this.uploadCustomerImage(idImage);
+      idImageUrl = uploadResult.secure_url;
     }
 
     await this.prisma.customer.create({
       data: {
+        firstname,
+        lastname,
+        phone,
         email,
+        addressType,
+        location,
         creatorId: requestUserId,
+        ...(alternatePhone && { alternatePhone }),
+        ...(gender && { gender }),
+        ...(installationAddress && { installationAddress }),
+        ...(lga && { lga }),
+        ...(state && { state }),
         ...(longitude && { longitude }),
         ...(latitude && { latitude }),
+        ...(idType && { idType }),
+        ...(idNumber && { idNumber }),
+        ...(type && { type }),
+        ...(passportPhotoUrl && { passportPhotoUrl }),
+        ...(idImageUrl && { idImageUrl }),
         ...rest,
       },
     });
@@ -52,8 +114,15 @@ export class CustomersService {
       lastname,
       email,
       phone,
+      alternatePhone,
+      gender,
       location,
+      installationAddress,
+      lga,
+      state,
       status,
+      type,
+      idType,
       createdAt,
       updatedAt,
       isNew,
@@ -67,6 +136,8 @@ export class CustomersService {
                 { firstname: { contains: search, mode: 'insensitive' } },
                 { lastname: { contains: search, mode: 'insensitive' } },
                 { email: { contains: search, mode: 'insensitive' } },
+                { phone: { contains: search, mode: 'insensitive' } },
+                { alternatePhone: { contains: search, mode: 'insensitive' } },
               ],
             }
           : {},
@@ -78,10 +149,28 @@ export class CustomersService {
           : {},
         email ? { email: { contains: email, mode: 'insensitive' } } : {},
         phone ? { phone: { contains: phone, mode: 'insensitive' } } : {},
+        alternatePhone
+          ? {
+              alternatePhone: { contains: alternatePhone, mode: 'insensitive' },
+            }
+          : {},
+        gender ? { gender: { contains: gender, mode: 'insensitive' } } : {},
         location
           ? { location: { contains: location, mode: 'insensitive' } }
           : {},
+        installationAddress
+          ? {
+              installationAddress: {
+                contains: installationAddress,
+                mode: 'insensitive',
+              },
+            }
+          : {},
+        lga ? { lga: { contains: lga, mode: 'insensitive' } } : {},
+        state ? { state: { contains: state, mode: 'insensitive' } } : {},
         status ? { status } : {},
+        type ? { type } : {},
+        idType ? { idType } : {},
         isNew
           ? {
               createdAt: {
@@ -120,6 +209,23 @@ export class CustomersService {
         ...filterConditions,
       },
       orderBy,
+      include: {
+        creatorDetails: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            email: true,
+          },
+        },
+        agent: {
+          select: {
+            user: {
+              select: { firstname: true, lastname: true, email: true },
+            },
+          },
+        },
+      },
     });
 
     const customers = plainToInstance(UserEntity, result);
@@ -142,6 +248,28 @@ export class CustomersService {
       where: {
         id,
       },
+      include: {
+        creatorDetails: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            email: true,
+          },
+        },
+        agent: {
+          select: {
+            user: {
+              select: { firstname: true, lastname: true, email: true },
+            },
+          },
+        },
+        products: {
+          include: {
+            product: true,
+          },
+        },
+      },
     });
 
     if (!customer) {
@@ -149,6 +277,108 @@ export class CustomersService {
     }
 
     return customer;
+  }
+
+  async updateCustomer(
+    id: string,
+    updateCustomerDto: UpdateCustomerDto,
+    passportPhoto?: Express.Multer.File,
+    idImage?: Express.Multer.File,
+  ) {
+    const {
+      longitude,
+      latitude,
+      email,
+      firstname,
+      lastname,
+      phone,
+      alternatePhone,
+      gender,
+      addressType,
+      installationAddress,
+      lga,
+      state,
+      location,
+      idType,
+      idNumber,
+      type,
+      ...rest
+    } = updateCustomerDto;
+
+    const existingCustomer = await this.prisma.customer.findUnique({
+      where: { id },
+    });
+
+    if (!existingCustomer) {
+      throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
+    }
+
+    if (email && email !== existingCustomer.email) {
+      const customerWithEmail = await this.prisma.customer.findFirst({
+        where: {
+          email,
+          id: { not: id },
+        },
+      });
+
+      if (customerWithEmail) {
+        throw new BadRequestException(MESSAGES.EMAIL_EXISTS);
+      }
+    }
+
+    // Handle image uploads
+    let passportPhotoUrl: string | null | undefined = undefined;
+    let idImageUrl: string | null | undefined = undefined;
+
+    if (passportPhoto) {
+      const uploadResult = await this.uploadCustomerImage(passportPhoto);
+      passportPhotoUrl = uploadResult.secure_url;
+    }
+
+    if (idImage) {
+      const uploadResult = await this.uploadCustomerImage(idImage);
+      idImageUrl = uploadResult.secure_url;
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      ...(firstname !== undefined && { firstname }),
+      ...(lastname !== undefined && { lastname }),
+      ...(phone !== undefined && { phone }),
+      ...(email !== undefined && { email }),
+      ...(addressType !== undefined && { addressType }),
+      ...(location !== undefined && { location }),
+      ...(alternatePhone !== undefined && { alternatePhone }),
+      ...(gender !== undefined && { gender }),
+      ...(installationAddress !== undefined && { installationAddress }),
+      ...(lga !== undefined && { lga }),
+      ...(state !== undefined && { state }),
+      ...(longitude !== undefined && { longitude }),
+      ...(latitude !== undefined && { latitude }),
+      ...(idType !== undefined && { idType }),
+      ...(idNumber !== undefined && { idNumber }),
+      ...(type !== undefined && { type }),
+      ...(passportPhotoUrl !== undefined && { passportPhotoUrl }),
+      ...(idImageUrl !== undefined && { idImageUrl }),
+      ...rest,
+    };
+
+    const updatedCustomer = await this.prisma.customer.update({
+      where: { id },
+      data: updateData,
+      include: {
+        creatorDetails: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return { message: MESSAGES.UPDATED, customer: updatedCustomer };
   }
 
   async deleteCustomer(id: string) {
@@ -194,11 +424,25 @@ export class CustomersService {
 
     const totalCustomerCount = await this.prisma.customer.count();
 
+    const leadCustomerCount = await this.prisma.customer.count({
+      where: {
+        type: 'lead',
+      },
+    });
+
+    const purchaseCustomerCount = await this.prisma.customer.count({
+      where: {
+        type: 'purchase',
+      },
+    });
+
     return {
       barredCustomerCount,
       newCustomerCount,
       activeCustomerCount,
       totalCustomerCount,
+      leadCustomerCount,
+      purchaseCustomerCount,
     };
   }
 
@@ -219,7 +463,7 @@ export class CustomersService {
         url: `/customers/single/${customerId}`,
       },
       {
-        name: 'RgistrationHistory',
+        name: 'Registration History',
         url: `/customers/${customerId}/registration-history`,
       },
       {

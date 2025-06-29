@@ -1,15 +1,27 @@
 model Customer {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  firstname   String
-  lastname    String
-  phone       String
-  email       String      @unique
-  addressType AddressType
-  location    String?
-  longitude   String?
-  latitude    String?
-  status      UserStatus  @default(active)
+  firstname        String
+  lastname         String
+  phone            String
+  alternatePhone   String?
+  gender           String?
+  email            String? @unique
+  passportPhotoUrl String?
+
+  addressType         AddressType
+  installationAddress String?
+  lga                 String?
+  state               String?
+  location            String?
+  longitude           String?
+  latitude            String?
+
+  idType     IDType?
+  idNumber   String?
+  idImageUrl String?
+
+  status UserStatus @default(active)
 
   type     CustomerType       @default(lead)
   products CustomerProducts[]

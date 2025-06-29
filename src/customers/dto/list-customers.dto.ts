@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { UserStatus } from '@prisma/client';
+import { UserStatus, CustomerType, IDType } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import {
   IsOptional,
@@ -47,6 +47,24 @@ export class ListCustomersQueryDto {
   phone?: string;
 
   @ApiPropertyOptional({
+    description: 'Filter by alternate phone number',
+    type: String,
+    example: '',
+  })
+  @IsOptional()
+  @IsString()
+  alternatePhone?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by gender',
+    type: String,
+    example: '',
+  })
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @ApiPropertyOptional({
     description: 'Filter by user location',
     type: String,
     example: '',
@@ -56,6 +74,33 @@ export class ListCustomersQueryDto {
   location?: string;
 
   @ApiPropertyOptional({
+    description: 'Filter by installation address',
+    type: String,
+    example: '',
+  })
+  @IsOptional()
+  @IsString()
+  installationAddress?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by LGA',
+    type: String,
+    example: '',
+  })
+  @IsOptional()
+  @IsString()
+  lga?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by state',
+    type: String,
+    example: '',
+  })
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @ApiPropertyOptional({
     description: 'Filter by user status',
     enum: UserStatus,
     example: '',
@@ -63,6 +108,24 @@ export class ListCustomersQueryDto {
   @IsOptional()
   @IsEnum(UserStatus)
   status?: UserStatus;
+
+  @ApiPropertyOptional({
+    description: 'Filter by customer type',
+    enum: CustomerType,
+    example: '',
+  })
+  @IsOptional()
+  @IsEnum(CustomerType)
+  type?: CustomerType;
+
+  @ApiPropertyOptional({
+    description: 'Filter by ID type',
+    enum: IDType,
+    example: '',
+  })
+  @IsOptional()
+  @IsEnum(IDType)
+  idType?: IDType;
 
   @ApiPropertyOptional({
     description: 'Filter by creation date',
@@ -103,7 +166,7 @@ export class ListCustomersQueryDto {
   sortOrder?: 'asc' | 'desc';
 
   @ApiPropertyOptional({
-    description: 'Search users by name, email, or username',
+    description: 'Search users by name, email, or phone',
     type: String,
     example: '',
   })
