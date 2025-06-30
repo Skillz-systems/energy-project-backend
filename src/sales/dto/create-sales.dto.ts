@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { CategoryTypes, PaymentMode } from '@prisma/client';
+import { CategoryTypes, PaymentMethod, PaymentMode } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   IsNotEmpty,
@@ -181,6 +181,15 @@ export class CreateSalesDto {
     message: 'Invalid customer Id',
   })
   customerId: string;
+
+  @ApiProperty({
+    description: 'Payment method for this sale.',
+    enum: PaymentMethod,
+    example: 'ONLINE',
+  })
+  @IsNotEmpty()
+  @IsEnum(PaymentMethod)
+  paymentMethod: PaymentMethod;
 
   @ApiPropertyOptional({
     description:

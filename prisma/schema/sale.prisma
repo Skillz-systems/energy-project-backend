@@ -18,6 +18,9 @@ model Sales {
   creatorDetails User?   @relation(fields: [creatorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   payment    Payment[]
+
+  paymentMethod PaymentMethod @default(ONLINE)
+  
   totalPrice Float     @default(0)
   totalPaid  Float     @default(0)
 

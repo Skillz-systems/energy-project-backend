@@ -4,7 +4,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PaymentMode, PaymentStatus, SalesStatus } from '@prisma/client';
+import {
+  PaymentMethod,
+  PaymentMode,
+  PaymentStatus,
+  SalesStatus,
+} from '@prisma/client';
 import { EmailService } from '../mailer/email.service';
 import { ConfigService } from '@nestjs/config';
 import { OpenPayGoService } from '../openpaygo/openpaygo.service';
@@ -41,15 +46,18 @@ export class PaymentService {
     amount: number,
     email: string,
     transactionRef: string,
+    type: PaymentMethod = PaymentMethod.ONLINE,
   ) {
-    await this.prisma.payment.create({
-      data: {
-        saleId,
-        amount,
-        transactionRef,
-        paymentDate: new Date(),
-      },
-    });
+    if (type === PaymentMethod.ONLINE) {
+      await this.prisma.payment.create({
+        data: {
+          saleId,
+          amount,
+          transactionRef,
+          paymentDate: new Date(),
+        },
+      });
+    }
 
     const sale = await this.prisma.sales.findFirst({
       where: {
@@ -73,11 +81,12 @@ export class PaymentService {
       paymentData: {
         amount,
         tx_ref: transactionRef,
-        currency: 'NGN',
+        currency: type === PaymentMethod.ONLINE ? 'NGN' : undefined,
         customer: {
           email,
         },
-        payment_options: 'banktransfer',
+        payment_options:
+          type === PaymentMethod.ONLINE ? 'banktransfer' : undefined,
         customizations: {
           title: 'Product Purchase',
           description: `Payment for sale ${saleId}`,
@@ -288,7 +297,11 @@ export class PaymentService {
       }
     }
 
-    if (sale.installmentAccountDetailsId && !sale.deliveredAccountDetails) {
+    if (
+      sale.paymentMethod === PaymentMethod.ONLINE &&
+      sale.installmentAccountDetailsId &&
+      !sale.deliveredAccountDetails
+    ) {
       if (sale.customer.email) {
         await this.Email.sendMail({
           to: sale.customer.email,

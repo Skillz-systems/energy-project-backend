@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSalesDto, SaleItemDto } from './dto/create-sales.dto';
-import { PaymentMode, SalesStatus } from '@prisma/client';
+import { PaymentMethod, PaymentMode, SalesStatus } from '@prisma/client';
 import { ValidateSaleProductItemDto } from './dto/validate-sale-product.dto';
 import { ContractService } from '../contract/contract.service';
 import { PaymentService } from '../payment/payment.service';
@@ -187,7 +187,7 @@ export class SalesService {
         data: { contractId: contract.id },
       });
 
-      if (dto.bvn) {
+      if (dto.bvn && dto.paymentMethod === PaymentMethod.ONLINE) {
         const tempAccountDetails =
           await this.paymentService.generateStaticAccount(
             sale.id,

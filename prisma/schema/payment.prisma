@@ -5,6 +5,8 @@ model Payment {
   paymentStatus  PaymentStatus @default(PENDING)
   paymentDate    DateTime      @default(now())
 
+  paymentMethod PaymentMethod @default(ONLINE)
+
   paymentResponses PaymentResponses[]
 
   saleId String @db.ObjectId
@@ -35,4 +37,9 @@ enum PaymentStatus {
   COMPLETED
   FAILED
   REFUNDED
+}
+
+enum PaymentMethod {
+  ONLINE
+  CASH
 }
