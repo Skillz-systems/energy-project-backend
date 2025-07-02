@@ -31,6 +31,8 @@ model User {
   createdSales            Sales[]
   createdInventoryBatches InventoryBatch[]
 
+  recordedPayments Payment[] @relation("RecordedPayments")
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?

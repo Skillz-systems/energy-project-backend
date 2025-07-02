@@ -3,32 +3,32 @@ model Contract {
 
   initialAmountPaid Float @default(0)
 
-  nextOfKinFullName     String
-  nextOfKinRelationship String
-  nextOfKinPhoneNumber  String
-  nextOfKinHomeAddress  String
+  nextOfKinFullName     String?
+  nextOfKinRelationship String?
+  nextOfKinPhoneNumber  String?
+  nextOfKinHomeAddress  String?
   nextOfKinEmail        String?
   nextOfKinDateOfBirth  DateTime?
   nextOfKinNationality  String?
 
-  guarantorFullName         String
-  guarantorPhoneNumber      String
-  guarantorHomeAddress      String
+  guarantorFullName         String?
+  guarantorPhoneNumber      String?
+  guarantorHomeAddress      String?
   guarantorEmail            String?
-  guarantorIdType           IDType
-  guarantorIdNumber         String
-  guarantorIdIssuingCountry String
+  guarantorIdType           IDType?
+  guarantorIdNumber         String?
+  guarantorIdIssuingCountry String?
   guarantorIdIssueDate      DateTime?
   guarantorIdExpirationDate DateTime?
   guarantorNationality      String?
   guarantorDateOfBirth      DateTime?
 
-  idType         IDType
-  idNumber       String
-  issuingCountry String
+  idType         IDType?
+  idNumber       String?
+  issuingCountry String?
   issueDate      DateTime?
   expirationDate DateTime?
-  fullNameAsOnID String
+  fullNameAsOnID String?
   addressAsOnID  String?
 
   signedContractUrl String?

@@ -179,7 +179,7 @@ export class PaymentService {
     return 'success';
   }
 
-  private async handlePostPayment(paymentData: any) {
+  async handlePostPayment(paymentData: any) {
     const sale = await this.prisma.sales.findUnique({
       where: { id: paymentData.saleId },
       include: {

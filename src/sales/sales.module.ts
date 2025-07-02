@@ -11,6 +11,7 @@ import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 import { TermiiService } from '../termii/termii.service';
 import { ConfigService } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
+import { BullModule } from '@nestjs/bullmq';
 
 @Module({
   imports: [
@@ -19,6 +20,9 @@ import { HttpModule } from '@nestjs/axios';
       maxRedirects: 5,
     }),
     CloudinaryModule,
+    BullModule.registerQueue({
+      name: 'payment-queue',
+    }),
   ],
   controllers: [SalesController],
   providers: [

@@ -5,13 +5,19 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSalesDto, SaleItemDto } from './dto/create-sales.dto';
-import { PaymentMethod, PaymentMode, SalesStatus } from '@prisma/client';
+import {
+  PaymentMethod,
+  PaymentMode,
+  PaymentStatus,
+  SalesStatus,
+} from '@prisma/client';
 import { ValidateSaleProductItemDto } from './dto/validate-sale-product.dto';
 import { ContractService } from '../contract/contract.service';
 import { PaymentService } from '../payment/payment.service';
 import { PaginationQueryDto } from 'src/utils/dto/pagination.dto';
 import { BatchAllocation, ProcessedSaleItem } from './sales.interface';
 import { CreateFinancialMarginDto } from './dto/create-financial-margins.dto';
+import { RecordCashPaymentDto } from 'src/payment/dto/cash-payment.dto';
 
 @Injectable()
 export class SalesService {
@@ -86,14 +92,14 @@ export class SalesService {
     //     'Contract details are required for installment payments',
     //   );
     // }
-    if (
-      hasInstallmentItems &&
-      (!dto.identificationDetails || !dto.guarantorDetails)
-    ) {
-      throw new BadRequestException(
-        'Contract details are required for installment payments',
-      );
-    }
+    // if (
+    //   hasInstallmentItems &&
+    //   (!dto.identificationDetails || !dto.guarantorDetails)
+    // ) {
+    //   throw new BadRequestException(
+    //     'Contract details are required for installment payments',
+    //   );
+    // }
 
     let sale: any;
 
@@ -296,6 +302,69 @@ export class SalesService {
     if (!saleItem) return new BadRequestException(`saleItem ${id} not found`);
 
     return saleItem;
+  }
+
+  async recordCashPayment(recordedById: string, dto: RecordCashPaymentDto) {
+    const sale = await this.prisma.sales.findUnique({
+      where: { id: dto.saleId },
+      include: {
+        customer: true,
+        saleItems: {
+          include: {
+            product: true,
+            devices: true,
+          },
+        },
+      },
+    });
+
+    if (!sale) {
+      throw new NotFoundException('Sale not found');
+    }
+
+    if (sale.paymentMethod !== PaymentMethod.CASH) {
+      throw new BadRequestException(
+        'This sale is not configured for cash payments',
+      );
+    }
+
+    if (sale.status === SalesStatus.COMPLETED) {
+      throw new BadRequestException('This sale is already completed');
+    }
+
+    if (sale.status === SalesStatus.CANCELLED) {
+      throw new BadRequestException('This sale has been cancelled');
+    }
+
+    // Check if payment amount is valid
+    const remainingAmount = sale.totalPrice - sale.totalPaid;
+    if (dto.amount > Math.ceil(remainingAmount)) {
+      throw new BadRequestException(
+        `Payment amount (${dto.amount}) exceeds remaining balance (${Math.ceil(remainingAmount)})`,
+      );
+    }
+
+    const transactionRef = `cash-${sale.id}-${Date.now()}`;
+
+    return await this.prisma.payment.create({
+      data: {
+        saleId: dto.saleId,
+        amount: dto.amount,
+        paymentMethod: PaymentMethod.CASH,
+        transactionRef,
+        paymentStatus: PaymentStatus.COMPLETED,
+        recordedById,
+        notes: dto.notes,
+        paymentDate: new Date(),
+      },
+    });
+
+    // await this.paymentService.handlePostPayment(payment);
+
+    // return {
+    //   payment,
+    //   message: 'Cash payment recorded successfully',
+    // };
   }
 
   async getSalesPaymentDetails(saleId: string) {

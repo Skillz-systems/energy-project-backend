@@ -7,6 +7,11 @@ model Payment {
 
   paymentMethod PaymentMethod @default(ONLINE)
 
+  recordedById String? @db.ObjectId
+  recordedBy   User?   @relation("RecordedPayments", fields: [recordedById], references: [id])
+
+  notes String?
+
   paymentResponses PaymentResponses[]
 
   saleId String @db.ObjectId
