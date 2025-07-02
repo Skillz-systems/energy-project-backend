@@ -450,7 +450,8 @@ export class SalesService {
 
     const priceAfterDiscount = totalBasePrice - discountAmount;
 
-    const totalPrice = priceAfterDiscount + miscTotal;
+    // const totalPrice = priceAfterDiscount + miscTotal;
+    const totalPrice = priceAfterDiscount;
 
     const processedItem: ProcessedSaleItem = {
       ...saleItem,
@@ -492,7 +493,7 @@ export class SalesService {
       processedItem.totalPrice = totalWithMargin;
       // processedItem.duration = numberOfMonths;
       // processedItem.installmentTotalPrice = installmentTotalPrice;
-      processedItem.installmentTotalPrice = installmentTotalPrice;
+      processedItem.installmentTotalPrice = installmentTotalPrice + miscTotal;
       processedItem.monthlyPayment =
         (totalWithMargin - installmentTotalPrice) / (numberOfMonths - 1);
     }
