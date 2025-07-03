@@ -9,15 +9,16 @@ import {
   PaymentMethod,
   PaymentMode,
   PaymentStatus,
+  Prisma,
   SalesStatus,
 } from '@prisma/client';
 import { ValidateSaleProductItemDto } from './dto/validate-sale-product.dto';
 import { ContractService } from '../contract/contract.service';
 import { PaymentService } from '../payment/payment.service';
-import { PaginationQueryDto } from 'src/utils/dto/pagination.dto';
 import { BatchAllocation, ProcessedSaleItem } from './sales.interface';
 import { CreateFinancialMarginDto } from './dto/create-financial-margins.dto';
 import { RecordCashPaymentDto } from 'src/payment/dto/cash-payment.dto';
+import { ListSalesQueryDto } from './dto/list-sales.dto';
 
 @Injectable()
 export class SalesService {
@@ -234,7 +235,7 @@ export class SalesService {
     );
   }
 
-  async getAllSales(query: PaginationQueryDto) {
+  async getAllSales(query: ListSalesQueryDto) {
     const { page = 1, limit = 100 } = query;
     const pageNumber = parseInt(String(page), 10);
     const limitNumber = parseInt(String(limit), 10);
@@ -242,28 +243,54 @@ export class SalesService {
     const skip = (pageNumber - 1) * limitNumber;
     const take = limitNumber;
 
-    const totalCount = await this.prisma.saleItem.count();
+    const whereClause: Prisma.SaleItemWhereInput = {};
 
-    const saleItems = await this.prisma.saleItem.findMany({
-      include: {
-        sale: {
-          include: { customer: true },
+    if (query.paymentMethod) {
+      whereClause.sale = {
+        paymentMethod: query.paymentMethod,
+      };
+    }
+
+    const [totalCount, saleItems] = await Promise.all([
+      this.prisma.saleItem.count({
+        where: whereClause,
+      }),
+      this.prisma.saleItem.findMany({
+        where: whereClause,
+        include: {
+          sale: {
+            include: {
+              customer: true,
+              payment: {
+                include: {
+                  recordedBy: {
+                    select: {
+                      id: true,
+                      firstname: true,
+                      lastname: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          devices: true,
+          SaleRecipient: true,
+          product: true,
         },
-        devices: true,
-        SaleRecipient: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      skip,
-      take,
-    });
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip,
+        take,
+      }),
+    ]);
 
     return {
       saleItems,
       total: totalCount,
-      page,
-      limit,
+      page: pageNumber,
+      limit: limitNumber,
       totalPages: limitNumber === 0 ? 0 : Math.ceil(totalCount / limitNumber),
     };
   }

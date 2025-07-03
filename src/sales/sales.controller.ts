@@ -29,11 +29,11 @@ import { GetSessionUser } from '../auth/decorators/getUser';
 import { SalesService } from './sales.service';
 import { CreateSalesDto } from './dto/create-sales.dto';
 import { ValidateSaleProductDto } from './dto/validate-sale-product.dto';
-import { PaginationQueryDto } from '../utils/dto/pagination.dto';
 import { CreateFinancialMarginDto } from './dto/create-financial-margins.dto';
 import { RecordCashPaymentDto } from '../payment/dto/cash-payment.dto';
 import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
+import { ListSalesQueryDto } from './dto/list-sales.dto';
 
 @SkipThrottle()
 @ApiTags('Sales')
@@ -145,10 +145,10 @@ export class SalesController {
     permissions: [`${ActionEnum.manage}:${SubjectEnum.Sales}`],
   })
   @ApiBadRequestResponse({})
-  @ApiExtraModels(PaginationQueryDto)
+  @ApiExtraModels(ListSalesQueryDto)
   @HttpCode(HttpStatus.OK)
   @Get('')
-  async getSales(@Query() query: PaginationQueryDto) {
+  async getSales(@Query() query: ListSalesQueryDto) {
     return await this.salesService.getAllSales(query);
   }
 
