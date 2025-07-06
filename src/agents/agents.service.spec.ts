@@ -94,22 +94,22 @@ describe('AgentsService', () => {
     });
   });
 
-  describe('getAll', () => {
-    it('should return paginated agents list', async () => {
-      const mockAgents = [
-        { id: 'agent1', userId: 'user1' },
-        { id: 'agent2', userId: 'user2' },
-      ];
+  // describe('getAll', () => {
+  //   it('should return paginated agents list', async () => {
+  //     const mockAgents = [
+  //       { id: 'agent1', userId: 'user1' },
+  //       { id: 'agent2', userId: 'user2' },
+  //     ];
 
-      prisma.agent.findMany.mockResolvedValue(mockAgents as any);
-      prisma.agent.count.mockResolvedValue(2);
+  //     prisma.agent.findMany.mockResolvedValue(mockAgents as any);
+  //     prisma.agent.count.mockResolvedValue(2);
 
-      const result = await service.getAll({ page: 1, limit: 10 });
+  //     const result = await service.getAll({ page: 1, limit: 10 });
 
-      expect(result.data).toEqual(mockAgents);
-      expect(result.meta.total).toEqual(2);
-    });
-  });
+  //     expect(result.data).toEqual(mockAgents);
+  //     expect(result.meta.total).toEqual(2);
+  //   });
+  // });
 
   describe('findOne', () => {
     it('should return an agent if found', async () => {

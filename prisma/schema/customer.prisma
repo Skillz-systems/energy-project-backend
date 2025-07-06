@@ -44,4 +44,5 @@ model Customer {
 enum CustomerType {
   lead
   purchase
+  residential
 }
