@@ -252,7 +252,7 @@ export class DataMappingService {
 
   private transformSaleData(extractedData: any) {
     // const estimatedPrice = this.estimateProductPrice(extractedData.productType);
-    const estimatedPrice = 0;
+    const estimatedPrice = 144000;
     const paymentMode = this.getPaymentMode(extractedData.paymentOption);
     const totalPaid = extractedData.initialDeposit || 0;
 
@@ -280,13 +280,12 @@ export class DataMappingService {
       totalMonthlyPayment:
         paymentMode === PaymentMode.INSTALLMENT
           ? // ? this.calculateMonthlyPayment(estimatedPrice, totalPaid)
-            0
+            6000
           : 0,
       installmentStartingPrice:
         paymentMode === PaymentMode.INSTALLMENT ? totalPaid : 0,
       totalInstallmentDuration:
-        // paymentMode === PaymentMode.INSTALLMENT ? 12 : 0, // Default 12 months
-        0,
+        paymentMode === PaymentMode.INSTALLMENT ? 24 : 0,
       paymentMode: paymentMode,
     };
   }
