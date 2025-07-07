@@ -36,6 +36,8 @@ model Sales {
   contractId String?   @db.ObjectId
   contract   Contract? @relation(fields: [contractId], references: [id])
 
+  transactionDate DateTime?
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?

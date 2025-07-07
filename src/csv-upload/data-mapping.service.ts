@@ -283,6 +283,7 @@ export class DataMappingService {
       installmentStartingPrice:
         paymentMode === PaymentMode.INSTALLMENT ? totalPaid : 0,
       paymentMode: paymentMode,
+      transactionDate: extractedData.dateOfRegistration,
 
       totalInstallmentDuration:
         extractedData.paymentPeriod ||
