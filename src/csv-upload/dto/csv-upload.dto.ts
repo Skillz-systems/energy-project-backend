@@ -259,6 +259,15 @@ export class SalesRowDto {
   @ApiPropertyOptional({ description: 'Initial deposit amount' })
   initialDeposit?: string | number;
 
+  @ApiPropertyOptional({ description: 'Period of payment (in months)' })
+  paymentPeriod?: string | number;
+
+  @ApiPropertyOptional({ description: 'Payment type classification' })
+  paymentType?: string;
+
+  @ApiPropertyOptional({ description: 'Total payment amount' })
+  totalPayment?: string | number;
+
   // Device Information
   @ApiPropertyOptional({ description: 'Device serial number' })
   serialNumber?: string;

@@ -349,11 +349,11 @@ export class SalesService {
       throw new NotFoundException('Sale not found');
     }
 
-    if (sale.paymentMethod !== PaymentMethod.CASH) {
-      throw new BadRequestException(
-        'This sale is not configured for cash payments',
-      );
-    }
+    // if (sale.paymentMethod !== PaymentMethod.CASH) {
+    //   throw new BadRequestException(
+    //     'This sale is not configured for cash payments',
+    //   );
+    // }
 
     if (sale.status === SalesStatus.COMPLETED) {
       throw new BadRequestException('This sale is already completed');

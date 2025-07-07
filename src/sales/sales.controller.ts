@@ -117,7 +117,7 @@ export class SalesController {
       };
     } catch (error) {
       console.log({ error });
-      throw new BadRequestException('Payment verification failed');
+      throw new BadRequestException(error);
     }
   }
 

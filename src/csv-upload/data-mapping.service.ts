@@ -90,6 +90,9 @@ export class DataMappingService {
       productType: this.cleanString(row.productType) || 'Unknown Product',
       paymentOption: this.normalizePaymentOption(row.paymentOption),
       initialDeposit: this.parseAmount(row.initialDeposit),
+      paymentPeriod: this.parseNumber(row.paymentPeriod),
+      paymentType: this.cleanString(row.paymentType),
+      totalPayment: this.parseAmount(row.totalPayment),
 
       // Device and installation
       serialNumber: this.cleanString(row.serialNumber),
@@ -140,7 +143,7 @@ export class DataMappingService {
     //   extractedData.lastName,
     //   extractedData.phoneNumber,
     // );
-    const email = null
+    const email = null;
 
     return {
       firstname: extractedData.firstName,
@@ -252,7 +255,7 @@ export class DataMappingService {
 
   private transformSaleData(extractedData: any) {
     // const estimatedPrice = this.estimateProductPrice(extractedData.productType);
-    const estimatedPrice = 144000;
+    const estimatedPrice = extractedData.totalPayment || 144000;
     const paymentMode = this.getPaymentMode(extractedData.paymentOption);
     const totalPaid = extractedData.initialDeposit || 0;
 
@@ -277,16 +280,20 @@ export class DataMappingService {
       status: status,
       totalPrice: estimatedPrice,
       totalPaid: totalPaid,
-      totalMonthlyPayment:
-        paymentMode === PaymentMode.INSTALLMENT
-          ? // ? this.calculateMonthlyPayment(estimatedPrice, totalPaid)
-            6000
-          : 0,
       installmentStartingPrice:
         paymentMode === PaymentMode.INSTALLMENT ? totalPaid : 0,
-      totalInstallmentDuration:
-        paymentMode === PaymentMode.INSTALLMENT ? 24 : 0,
       paymentMode: paymentMode,
+
+      totalInstallmentDuration:
+        extractedData.paymentPeriod ||
+        (paymentMode === PaymentMode.INSTALLMENT ? 24 : 0),
+      totalMonthlyPayment:
+        paymentMode === PaymentMode.INSTALLMENT
+          ? Math.ceil(
+              // (estimatedPrice - totalPaid) / extractedData.paymentPeriod,
+              estimatedPrice / extractedData.paymentPeriod,
+            )
+          : 0,
     };
   }
 
@@ -388,6 +395,37 @@ export class DataMappingService {
     const parsed = parseFloat(cleaned);
 
     return isNaN(parsed) ? 0 : parsed;
+  }
+
+  private parseNumber(value: any): number | null {
+    if (!value) return null;
+
+    if (typeof value === 'number') {
+      return isNaN(value) ? null : value;
+    }
+
+    if (typeof value !== 'string') {
+      try {
+        value = value.toString();
+      } catch {
+        return null;
+      }
+    }
+
+    const cleaned = value
+      .toString()
+      .replace(/[₦$£€¥,\s]/g, '') // Remove common currency symbols and commas
+      .replace(/[^\d.-]/g, '') // Keep only digits, dots, and minus signs
+      .trim();
+
+    if (cleaned === '' || cleaned === '-' || cleaned === '.') {
+      return null;
+    }
+
+    // Parse the cleaned value
+    const parsed = parseFloat(cleaned);
+
+    return isNaN(parsed) ? null : parsed;
   }
 
   private parseDate(dateString: any): Date | null {

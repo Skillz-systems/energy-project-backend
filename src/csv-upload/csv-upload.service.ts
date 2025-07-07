@@ -138,6 +138,17 @@ export class CsvUploadService {
     ['initial_deposit', 'initialDeposit'],
     ['deposit', 'initialDeposit'],
 
+    ['period of payment', 'paymentPeriod'],
+    ['payment period', 'paymentPeriod'],
+    ['period_of_payment', 'paymentPeriod'],
+
+    ['payment type', 'paymentType'],
+    ['payment_type', 'paymentType'],
+
+    ['total payment', 'totalPayment'],
+    ['total_payment', 'totalPayment'],
+    ['total amount', 'totalPayment'],
+
     // Device Info
     ['serial number', 'serialNumber'],
     ['serial_number', 'serialNumber'],
