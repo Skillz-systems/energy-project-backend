@@ -24,14 +24,18 @@ import {
   CsvUploadStatsDto,
   ProcessCsvDto,
   ValidationResultDto,
-  BatchProcessRequestDto,
   SessionStatsRequestDto,
 } from './dto/csv-upload.dto';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 @ApiTags('CSV Data Migration')
 @Controller('csv-upload')
 export class CsvUploadController {
-  constructor(private readonly csvUploadService: CsvUploadService) {}
+  constructor(
+    private readonly csvUploadService: CsvUploadService,
+    @InjectQueue('csv-processing') private readonly csvQueue: Queue,
+  ) {}
 
   @Post('validate')
   @UseInterceptors(FileInterceptor('file'))
@@ -157,31 +161,6 @@ export class CsvUploadController {
     return await this.csvUploadService.processSalesFile(file, processCsvDto);
   }
 
-  @Post('process-batch')
-  @ApiOperation({
-    summary: 'Process specific batch of validated sales data',
-    description:
-      'Process a specific batch of pre-validated sales data from an ongoing session',
-  })
-  @ApiBody({
-    description: 'Batch processing request',
-    type: BatchProcessRequestDto,
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Batch processing result with detailed statistics',
-    type: CsvUploadStatsDto,
-  })
-  @HttpCode(HttpStatus.OK)
-  async processBatch(
-    @Body() batchRequest: BatchProcessRequestDto,
-  ): Promise<CsvUploadStatsDto> {
-    return await this.csvUploadService.processBatch(
-      batchRequest.sessionId,
-      batchRequest.batchIndex,
-    );
-  }
-
   @Post('get-upload-stats')
   @ApiOperation({
     summary: 'Get upload session statistics',
@@ -202,61 +181,5 @@ export class CsvUploadController {
     @Body() statsRequest: SessionStatsRequestDto,
   ): Promise<CsvUploadStatsDto> {
     return await this.csvUploadService.getUploadStats(statsRequest.sessionId);
-  }
-
-  @Post('cancel-session')
-  @ApiOperation({
-    summary: 'Cancel an ongoing upload session',
-    description:
-      'Cancel processing for a specific session and cleanup resources',
-  })
-  @ApiBody({
-    description: 'Session to cancel',
-    type: SessionStatsRequestDto,
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Session cancellation result',
-    schema: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-        message: { type: 'string' },
-        sessionId: { type: 'string' },
-        rollbackCompleted: { type: 'boolean' },
-      },
-    },
-  })
-  @HttpCode(HttpStatus.OK)
-  async cancelSession(@Body() cancelRequest: SessionStatsRequestDto): Promise<{
-    success: boolean;
-    message: string;
-    sessionId: string;
-    rollbackCompleted: boolean;
-  }> {
-    return await this.csvUploadService.cancelSession(cancelRequest.sessionId);
-  }
-
-  @Post('retry-failed')
-  @ApiOperation({
-    summary: 'Retry processing failed records',
-    description: 'Retry processing of failed records from a completed session',
-  })
-  @ApiBody({
-    description: 'Session to retry failed records',
-    type: SessionStatsRequestDto,
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Retry processing result',
-    type: CsvUploadResponseDto,
-  })
-  @HttpCode(HttpStatus.OK)
-  async retryFailedRecords(
-    @Body() retryRequest: SessionStatsRequestDto,
-  ): Promise<CsvUploadResponseDto> {
-    return await this.csvUploadService.retryFailedRecords(
-      retryRequest.sessionId,
-    );
   }
 }

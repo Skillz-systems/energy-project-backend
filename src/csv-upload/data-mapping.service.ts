@@ -78,6 +78,7 @@ export class DataMappingService {
       passportPhotoUrl: this.cleanString(row.passportPhotoUrl),
       idImageUrl: this.cleanString(row.idImageUrl),
       signedContractUrl: this.cleanString(row.signedContractUrl),
+      contractFormImageUrl: this.cleanString(row.contractFormImageUrl),
 
       // Customer category
       customerCategory: this.normalizeCustomerCategory(row.customerCategory),
@@ -165,6 +166,8 @@ export class DataMappingService {
       idType: extractedData.idType || null,
       idNumber: extractedData.idNumber || null,
       idImageUrl: extractedData.idImageUrl || null,
+
+      contractFormImageUrl: extractedData.contractFormImageUrl || null,
 
       status: UserStatus.active,
       type: extractedData.customerCategory,

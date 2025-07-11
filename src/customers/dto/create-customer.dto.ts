@@ -160,4 +160,11 @@ export class CreateCustomerDto {
     format: 'binary',
   })
   idImage?: Express.Multer.File;
+
+  @ApiPropertyOptional({
+    type: 'file',
+    description: 'Customer contract form image file',
+    format: 'binary',
+  })
+  contractFormImage?: Express.Multer.File;
 }

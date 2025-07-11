@@ -12,6 +12,9 @@ import {
   SalesRowDto,
 } from './dto/csv-upload.dto';
 import { PaymentMode } from '@prisma/client';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 interface ProcessingSession {
   id: string;
@@ -22,11 +25,11 @@ interface ProcessingSession {
   };
   data: SalesRowDto[];
   stats: CsvUploadStatsDto;
-  batches: Array<{
-    batchIndex: number;
-    data: SalesRowDto[];
-    status: 'pending' | 'processing' | 'completed' | 'failed';
-  }>;
+  // batches: Array<{
+  //   batchIndex: number;
+  //   data: SalesRowDto[];
+  //   status: 'pending' | 'processing' | 'completed' | 'failed';
+  // }>;
   generatedDefaults: any;
   columnMapping: Map<string, string>;
   failedRecords: Array<{
@@ -108,9 +111,10 @@ export class CsvUploadService {
     ['upload id card', 'idImageUrl'],
     ['upload_id_card', 'idImageUrl'],
     ['id card', 'idImageUrl'],
-    ['upload signed copy of contract form', 'signedContractUrl'],
-    ['upload_signed_copy_of_contract_form', 'signedContractUrl'],
-    ['signed contract', 'signedContractUrl'],
+    ['upload signed copy of contract form', 'contractFormImageUrl'],
+    ['upload_signed_copy_of_contract_form', 'contractFormImageUrl'],
+    ['signed contract', 'contractFormImageUrl'],
+    ['contract form', 'contractFormImageUrl'],
 
     // Customer Category
     ['customer category', 'customerCategory'],
@@ -169,6 +173,8 @@ export class CsvUploadService {
     private readonly dataMappingService: DataMappingService,
     private readonly defaultsGenerator: DefaultsGeneratorService,
     private readonly fileParser: FileParserService,
+    private readonly cloudinary: CloudinaryService,
+    @InjectQueue('csv-processing') private readonly csvQueue: Queue,
   ) {
     // Start cleanup interval for old sessions
     // setInterval(() => this.cleanupOldSessions(), 60 * 60 * 1000); // Every hour
@@ -273,11 +279,14 @@ export class CsvUploadService {
         transformedData,
         generatedDefaults,
         columnMapping,
-        processCsvDto.batchSize || 50,
+        // processCsvDto.batchSize || 50,
       );
 
-      // Start background processing
-      this.processSessionBatches(sessionId);
+      await this.queueRowProcessingJobs(
+        sessionId,
+        transformedData,
+        generatedDefaults,
+      );
 
       return {
         sessionId,
@@ -294,23 +303,101 @@ export class CsvUploadService {
     }
   }
 
-  async processBatch(
+  private async queueRowProcessingJobs(
     sessionId: string,
-    batchIndex: number,
-  ): Promise<CsvUploadStatsDto> {
+    data: SalesRowDto[],
+    generatedDefaults: any,
+  ): Promise<void> {
+    const jobs = data.map((rowData, index) => ({
+      name: 'process-sales-row',
+      data: {
+        sessionId,
+        rowData,
+        rowIndex: index,
+        generatedDefaults,
+      },
+      opts: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2000,
+        },
+        removeOnComplete: 100,
+        removeOnFail: 50,
+      },
+    }));
+
+    await this.csvQueue.addBulk(jobs);
+    this.logger.log(`Queued ${jobs.length} jobs for session ${sessionId}`);
+  }
+
+  async updateSessionProgress(
+    sessionId: string,
+    update: {
+      processed: boolean;
+      success: boolean;
+      result?: any;
+      error?: string;
+      rowData?: any;
+      rowIndex?: number;
+    },
+  ): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      throw new BadRequestException('Session not found');
+      this.logger.warn(`Session ${sessionId} not found for progress update`);
+      return;
     }
 
-    if (batchIndex >= session.batches.length) {
-      throw new BadRequestException('Batch index out of range');
+    if (update.processed) {
+      session.stats.processedRecords++;
+
+      if (update.success && update.result) {
+        // Update success stats based on result
+        if (update.result.customerCreated)
+          session.stats.breakdown.customers.created++;
+        if (update.result.customerUpdated)
+          session.stats.breakdown.customers.updated++;
+        if (update.result.productCreated)
+          session.stats.breakdown.products.created++;
+        if (update.result.saleCreated) session.stats.breakdown.sales.created++;
+        if (update.result.contractCreated)
+          session.stats.breakdown.contracts.created++;
+        if (update.result.agentCreated)
+          session.stats.breakdown.agents.created++;
+        if (update.result.deviceCreated)
+          session.stats.breakdown.devices.created++;
+      } else if (!update.success) {
+        session.stats.errorRecords++;
+        session.failedRecords.push({
+          row: update.rowData,
+          error: update.error || 'Unknown error',
+          rowIndex: update.rowIndex || 0,
+        });
+
+        session.stats.errors.push({
+          row: (update.rowIndex || 0) + 1,
+          field: 'general',
+          message: update.error || 'Unknown error',
+          data: update.rowData,
+        });
+      }
+
+      // Update progress percentage
+      session.stats.progressPercentage = Math.round(
+        (session.stats.processedRecords / session.stats.totalRecords) * 100,
+      );
+
+      // Update status
+      if (session.stats.processedRecords >= session.stats.totalRecords) {
+        session.stats.status = 'completed';
+        session.stats.endTime = new Date();
+        this.logger.log(
+          `Session ${sessionId} completed. Processed: ${session.stats.processedRecords}/${session.stats.totalRecords}`,
+        );
+      } else {
+        session.stats.status = 'processing';
+      }
     }
-
-    const batch = session.batches[batchIndex];
-    await this.processBatchData(session, batch);
-
-    return session.stats;
   }
 
   async getUploadStats(sessionId: string): Promise<CsvUploadStatsDto> {
@@ -322,68 +409,7 @@ export class CsvUploadService {
     return session.stats;
   }
 
-  async cancelSession(sessionId: string): Promise<{
-    success: boolean;
-    message: string;
-    sessionId: string;
-    rollbackCompleted: boolean;
-  }> {
-    const session = this.sessions.get(sessionId);
-    if (!session) {
-      throw new BadRequestException('Session not found');
-    }
-
-    session.stats.status = 'cancelled';
-    session.stats.endTime = new Date();
-
-    // Attempt rollback of created entities
-    const rollbackCompleted = await this.rollbackCreatedEntities(session);
-
-    this.logger.log(
-      `Session ${sessionId} cancelled with rollback: ${rollbackCompleted}`,
-    );
-
-    return {
-      success: true,
-      message: 'Session cancelled successfully',
-      sessionId,
-      rollbackCompleted,
-    };
-  }
-
-  async retryFailedRecords(sessionId: string): Promise<CsvUploadResponseDto> {
-    const session = this.sessions.get(sessionId);
-    if (!session) {
-      throw new BadRequestException('Session not found');
-    }
-
-    if (session.failedRecords.length === 0) {
-      throw new BadRequestException('No failed records to retry');
-    }
-
-    const newSessionId = uuidv4();
-    const failedData = session.failedRecords.map((fr) => fr.row);
-
-    const newSession = await this.createProcessingSession(
-      newSessionId,
-      session.fileInfo,
-      failedData,
-      session.generatedDefaults,
-      session.columnMapping,
-      25, // Smaller batch size for retries
-    );
-
-    this.processSessionBatches(newSessionId);
-
-    return {
-      sessionId: newSessionId,
-      success: true,
-      message: `Retry session started for ${failedData.length} failed records.`,
-      stats: newSession.stats,
-    };
-  }
-
-  private mapColumns(headers: string[]): Map<string, string> {
+   private mapColumns(headers: string[]): Map<string, string> {
     const mapping = new Map<string, string>();
 
     for (const header of headers) {
@@ -449,28 +475,6 @@ export class CsvUploadService {
     ];
   }
 
-  //   private getOptionalColumns(): string[] {
-  //     return [
-  //       'salesAgent',
-  //       'alternatePhoneNumber',
-  //       'gender',
-  //       'idType',
-  //       'idNumber',
-  //       'passportPhotoUrl',
-  //       'idImageUrl',
-  //       'signedContractUrl',
-  //       'lga',
-  //       'state',
-  //       'customerCategory',
-  //       'guarantorName',
-  //       'guarantorNumber',
-  //       'initialDeposit',
-  //       'installerName',
-  //       'latitude',
-  //       'longitude',
-  //     ];
-  //   }
-
   private transformRowWithMapping(
     row: any,
     columnMapping: Map<string, string>,
@@ -499,19 +503,7 @@ export class CsvUploadService {
     data: SalesRowDto[],
     generatedDefaults: any,
     columnMapping: Map<string, string>,
-    batchSize: number,
   ): Promise<ProcessingSession> {
-    // Create batches
-    const batches = [];
-    for (let i = 0; i < data.length; i += batchSize) {
-      const batchData = data.slice(i, i + batchSize);
-      batches.push({
-        batchIndex: batches.length,
-        data: batchData,
-        status: 'pending' as const,
-      });
-    }
-
     const session: ProcessingSession = {
       id: sessionId,
       fileInfo:
@@ -523,7 +515,7 @@ export class CsvUploadService {
             }
           : fileInfo,
       data,
-      batches,
+      // batches: [],
       generatedDefaults,
       columnMapping,
       failedRecords: [],
@@ -559,88 +551,16 @@ export class CsvUploadService {
     return session;
   }
 
-  private async processSessionBatches(sessionId: string): Promise<void> {
-    const session = this.sessions.get(sessionId);
-    if (!session) return;
-
-    session.stats.status = 'processing';
-
-    try {
-      for (let i = 0; i < session.batches.length; i++) {
-        const currentSession = this.sessions.get(sessionId);
-        if (!currentSession || currentSession.stats.status === 'cancelled') {
-          break;
-        }
-
-        const batch = session.batches[i];
-        batch.status = 'processing';
-
-        await this.processBatchData(session, batch);
-
-        batch.status = 'completed';
-
-        // Update progress
-        session.stats.progressPercentage = Math.round(
-          ((i + 1) / session.batches.length) * 100,
-        );
-
-        // Add delay to prevent overwhelming the database
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-
-      const finalSession = this.sessions.get(sessionId);
-      if (finalSession && finalSession.stats.status !== 'cancelled') {
-        finalSession.stats.status = 'completed';
-        finalSession.stats.endTime = new Date();
-      }
-    } catch (error) {
-      this.logger.error(`Error processing session ${sessionId}`, error);
-      session.stats.status = 'failed';
-      session.stats.endTime = new Date();
-    }
-  }
-
-  private async processBatchData(
-    session: ProcessingSession,
-    batch: { batchIndex: number; data: SalesRowDto[]; status: string },
-  ): Promise<void> {
-    for (let rowIndex = 0; rowIndex < batch.data.length; rowIndex++) {
-      const row = batch.data[rowIndex];
-      const globalRowIndex = batch.batchIndex * batch.data.length + rowIndex;
-
-      try {
-        await this.processSalesRow(row, session, globalRowIndex);
-        session.stats.processedRecords++;
-      } catch (error) {
-        this.logger.error(`Error processing row ${globalRowIndex + 1}`, error);
-
-        session.stats.errorRecords++;
-        session.failedRecords.push({
-          row,
-          error: error.message,
-          rowIndex: globalRowIndex,
-        });
-
-        session.stats.errors.push({
-          row: globalRowIndex + 1,
-          field: 'general',
-          message: error.message,
-          data: row,
-        });
-      }
-    }
-  }
-
-  private async processSalesRow(
+  async processSalesRow(
     row: SalesRowDto,
-    session: ProcessingSession,
+    generatedDefaults: any,
     rowIndex: number,
   ): Promise<void> {
     // Transform the row data to database entities
     const transformedData =
       await this.dataMappingService.transformSalesRowToEntities(
         row,
-        session.generatedDefaults,
+        generatedDefaults,
       );
 
     // Process each entity in proper order (dependencies first)
@@ -648,36 +568,36 @@ export class CsvUploadService {
     // 1. Create or find agent
     let agent = null;
     if (transformedData.agentData) {
-      agent = await this.createOrFindAgent(transformedData.agentData, session);
+      agent = await this.createOrFindAgent(
+        transformedData.agentData,
+        generatedDefaults,
+      );
     }
 
     // 2. Create or find customer
     const customer = await this.createOrFindCustomer(
       transformedData.customerData,
-      session,
+      generatedDefaults,
       agent?.id,
     );
 
     // 3. Create or find product
     const product = await this.createOrFindProduct(
       transformedData.productData,
-      session,
+      generatedDefaults,
     );
 
     // 4. Create inventory and device if needed
     const { inventory, device } = await this.createInventoryAndDevice(
       transformedData.inventoryData,
       transformedData.deviceData,
-      session,
+      generatedDefaults,
     );
 
     // 5. Create contract if needed
     let contract = null;
     if (transformedData.contractData) {
-      contract = await this.createContract(
-        transformedData.contractData,
-        session,
-      );
+      contract = await this.createContract(transformedData.contractData);
     }
 
     // 6. Create sale with all relationships
@@ -688,12 +608,16 @@ export class CsvUploadService {
       inventory?.id,
       device?.id,
       contract?.id,
-      session,
+      generatedDefaults,
     );
 
     // 7. Create initial payment if there's a deposit
     if (transformedData.paymentData) {
-      await this.createPayment(transformedData.paymentData, sale.id, session);
+      await this.createPayment(
+        transformedData.paymentData,
+        sale.id,
+        generatedDefaults,
+      );
     }
 
     this.logger.debug(`Successfully processed sales row ${rowIndex + 1}`);
@@ -701,7 +625,7 @@ export class CsvUploadService {
 
   private async createOrFindAgent(
     agentData: any,
-    session: ProcessingSession,
+    generatedDefaults: any,
   ): Promise<any> {
     try {
       // First, try to find existing user by name or create one
@@ -725,13 +649,10 @@ export class CsvUploadService {
         user = await this.prisma.user.create({
           data: {
             ...agentData.userData,
-            roleId: session.generatedDefaults.defaultRole.id,
+            roleId: generatedDefaults.defaultRole.id,
           },
           include: { agentDetails: true },
         });
-
-        session.stats.breakdown.agents.created++;
-        session.createdEntities.agents.push(user.id);
       }
 
       // Check if user has agent details, create if not
@@ -755,14 +676,13 @@ export class CsvUploadService {
       return user.agentDetails;
     } catch (error) {
       this.logger.error('Error creating/finding agent', error);
-      session.stats.breakdown.agents.errors++;
       throw error;
     }
   }
 
   private async createOrFindCustomer(
     customerData: any,
-    session: ProcessingSession,
+    generatedDefaults: any,
     agentId?: string,
   ): Promise<any> {
     try {
@@ -778,41 +698,94 @@ export class CsvUploadService {
       });
 
       if (!customer) {
+        const processedCustomerData = { ...customerData };
+
+        // Upload images to Cloudinary if URLs are provided
+        if (customerData.passportPhotoUrl) {
+          const cloudinaryUrl = await this.cloudinary.uploadUrlToCloudinary(
+            customerData.passportPhotoUrl,
+            `${customerData.firstname}_${customerData.lastname}_passport`,
+          );
+          processedCustomerData.passportPhotoUrl = cloudinaryUrl;
+        }
+
+        if (customerData.idImageUrl) {
+          const cloudinaryUrl = await this.cloudinary.uploadUrlToCloudinary(
+            customerData.idImageUrl,
+            `${customerData.firstname}_${customerData.lastname}_id`,
+          );
+          processedCustomerData.idImageUrl = cloudinaryUrl;
+        }
+
+        if (customerData.contractFormImageUrl) {
+          const cloudinaryUrl = await this.cloudinary.uploadUrlToCloudinary(
+            customerData.contractFormImageUrl,
+            `${customerData.firstname}_${customerData.lastname}_contract`,
+          );
+          processedCustomerData.contractFormImageUrl = cloudinaryUrl;
+        }
+
         customer = await this.prisma.customer.create({
           data: {
-            ...customerData,
-            creatorId: session.generatedDefaults.defaultUser.id || agentId,
+            ...processedCustomerData,
+            creatorId: generatedDefaults.defaultUser.id || agentId,
             agentId: agentId,
           },
         });
 
-        session.stats.breakdown.customers.created++;
-        session.createdEntities.customers.push(customer.id);
         this.logger.debug(
           `Created new customer: ${customer.firstname} ${customer.lastname}`,
         );
       } else {
         // Update customer with any new information
+
+        const updateData: any = {
+          installationAddress:
+            customer.installationAddress || customerData.installationAddress,
+          lga: customer.lga || customerData.lga,
+          state: customer.state || customerData.state,
+          latitude: customer.latitude || customerData.latitude,
+          longitude: customer.longitude || customerData.longitude,
+          gender: customer.gender || customerData.gender,
+          idType: customer.idType || customerData.idType,
+          idNumber: customer.idNumber || customerData.idNumber,
+          passportPhotoUrl:
+            customer.passportPhotoUrl || customerData.passportPhotoUrl,
+          idImageUrl: customer.idImageUrl || customerData.idImageUrl,
+        };
+
+        if (!customer.passportPhotoUrl && customerData.passportPhotoUrl) {
+          const cloudinaryUrl = await this.cloudinary.uploadUrlToCloudinary(
+            customerData.passportPhotoUrl,
+            `${customer.firstname}_${customer.lastname}_passport`,
+          );
+          if (cloudinaryUrl) updateData.passportPhotoUrl = cloudinaryUrl;
+        }
+
+        if (!customer.idImageUrl && customerData.idImageUrl) {
+          const cloudinaryUrl = await this.cloudinary.uploadUrlToCloudinary(
+            customerData.idImageUrl,
+            `${customer.firstname}_${customer.lastname}_id`,
+          );
+          if (cloudinaryUrl) updateData.idImageUrl = cloudinaryUrl;
+        }
+
+        if (
+          !customer.contractFormImageUrl &&
+          customerData.contractFormImageUrl
+        ) {
+          const cloudinaryUrl = await this.cloudinary.uploadUrlToCloudinary(
+            customerData.contractFormImageUrl,
+            `${customer.firstname}_${customer.lastname}_contract`,
+          );
+          if (cloudinaryUrl) updateData.contractFormImageUrl = cloudinaryUrl;
+        }
+
         customer = await this.prisma.customer.update({
           where: { id: customer.id },
-          data: {
-            // Only update fields that are not already set
-            installationAddress:
-              customer.installationAddress || customerData.installationAddress,
-            lga: customer.lga || customerData.lga,
-            state: customer.state || customerData.state,
-            latitude: customer.latitude || customerData.latitude,
-            longitude: customer.longitude || customerData.longitude,
-            gender: customer.gender || customerData.gender,
-            idType: customer.idType || customerData.idType,
-            idNumber: customer.idNumber || customerData.idNumber,
-            passportPhotoUrl:
-              customer.passportPhotoUrl || customerData.passportPhotoUrl,
-            idImageUrl: customer.idImageUrl || customerData.idImageUrl,
-          },
+          data: updateData,
         });
 
-        session.stats.breakdown.customers.updated++;
         this.logger.debug(
           `Updated existing customer: ${customer.firstname} ${customer.lastname}`,
         );
@@ -821,14 +794,13 @@ export class CsvUploadService {
       return customer;
     } catch (error) {
       this.logger.error('Error creating/finding customer', error);
-      session.stats.breakdown.customers.errors++;
       throw error;
     }
   }
 
   private async createOrFindProduct(
     productData: any,
-    session: ProcessingSession,
+    generatedDefaults: any,
   ): Promise<any> {
     try {
       let product = await this.prisma.product.findFirst({
@@ -844,22 +816,17 @@ export class CsvUploadService {
         product = await this.prisma.product.create({
           data: {
             ...productData,
-            categoryId: session.generatedDefaults.categories.product.id,
-            creatorId: session.generatedDefaults.defaultUser.id,
+            categoryId: generatedDefaults.categories.product.id,
+            creatorId: generatedDefaults.defaultUser.id,
           },
         });
 
-        session.stats.breakdown.products.created++;
-        session.createdEntities.products.push(product.id);
         this.logger.debug(`Created new product: ${product.name}`);
-      } else {
-        session.stats.breakdown.products.updated++;
       }
 
       return product;
     } catch (error) {
       this.logger.error('Error creating/finding product', error);
-      session.stats.breakdown.products.errors++;
       throw error;
     }
   }
@@ -867,7 +834,7 @@ export class CsvUploadService {
   private async createInventoryAndDevice(
     inventoryData: any,
     deviceData: any,
-    session: ProcessingSession,
+    generatedDefaults: any,
   ): Promise<{ inventory: any; device: any }> {
     try {
       let inventory = null;
@@ -890,8 +857,7 @@ export class CsvUploadService {
           inventory = await this.prisma.inventory.create({
             data: {
               ...rest,
-              inventoryCategoryId:
-                session.generatedDefaults.categories.inventory.id,
+              inventoryCategoryId: generatedDefaults.categories.inventory.id,
             },
           });
         }
@@ -905,7 +871,7 @@ export class CsvUploadService {
             batchNumber: Date.now() - 100,
             numberOfStock: 1,
             remainingQuantity: 0, // Will be reduced when sold
-            creatorId: session.generatedDefaults.defaultUser.id,
+            creatorId: generatedDefaults.defaultUser.id,
           },
         });
       }
@@ -921,10 +887,7 @@ export class CsvUploadService {
             data: deviceData,
           });
 
-          session.stats.breakdown.devices.created++;
           this.logger.debug(`Created new device: ${device.serialNumber}`);
-        } else {
-          session.stats.breakdown.devices.updated++;
         }
       }
 
@@ -935,23 +898,17 @@ export class CsvUploadService {
     }
   }
 
-  private async createContract(
-    contractData: any,
-    session: ProcessingSession,
-  ): Promise<any> {
+  private async createContract(contractData: any): Promise<any> {
     try {
       const contract = await this.prisma.contract.create({
         data: contractData,
       });
 
-      session.stats.breakdown.contracts.created++;
-      session.createdEntities.contracts.push(contract.id);
       this.logger.debug(`Created contract: ${contract.id}`);
 
       return contract;
     } catch (error) {
       this.logger.error('Error creating contract', error);
-      session.stats.breakdown.contracts.errors++;
       throw error;
     }
   }
@@ -963,7 +920,7 @@ export class CsvUploadService {
     inventoryId?: string,
     deviceId?: string,
     contractId?: string,
-    session?: ProcessingSession,
+    generatedDefaults?: any,
   ): Promise<any> {
     try {
       const { paymentMode, ...rest } = saleData;
@@ -973,7 +930,7 @@ export class CsvUploadService {
           ...rest,
           customerId,
           contractId,
-          creatorId: session.generatedDefaults.defaultUser.id,
+          creatorId: generatedDefaults.defaultUser.id,
         },
       });
 
@@ -1020,14 +977,11 @@ export class CsvUploadService {
         }
       }
 
-      session.stats.breakdown.sales.created++;
-      session.createdEntities.sales.push(sale.id);
       this.logger.debug(`Created sale: ${sale.id}`);
 
       return sale;
     } catch (error) {
       this.logger.error('Error creating sale', error);
-      session.stats.breakdown.sales.errors++;
       throw error;
     }
   }
@@ -1035,7 +989,7 @@ export class CsvUploadService {
   private async createPayment(
     paymentData: any,
     saleId: string,
-    session: ProcessingSession,
+    generatedDefaults: any,
   ): Promise<any> {
     try {
       const payment = await this.prisma.payment.create({
@@ -1043,7 +997,7 @@ export class CsvUploadService {
           ...paymentData,
           transactionRef: `sale-${saleId}-${Date.now()}`,
           saleId,
-          recordedById: session.generatedDefaults.defaultUser.id,
+          recordedById: generatedDefaults.defaultUser.id,
         },
       });
 

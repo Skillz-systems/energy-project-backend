@@ -79,6 +79,7 @@ export class CustomersController {
     FileFieldsInterceptor([
       { name: 'passportPhoto', maxCount: 1 },
       { name: 'idImage', maxCount: 1 },
+      { name: 'contractFormImage', maxCount: 1 },
     ]),
   )
   async create(
@@ -87,6 +88,7 @@ export class CustomersController {
     files: {
       passportPhoto?: Express.Multer.File[];
       idImage?: Express.Multer.File[];
+      contractFormImage?: Express.Multer.File[];
     },
     @GetSessionUser('id') requestUserId: string,
   ) {
@@ -107,11 +109,20 @@ export class CustomersController {
       await idImageValidator.transform(files.idImage[0]);
     }
 
+    if (files?.contractFormImage?.[0]) {
+      const contractFormImage = new ParseFilePipeBuilder()
+        .addFileTypeValidator({ fileType: /(jpeg|jpg|png|svg)$/i })
+        .build({ errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY });
+
+      await contractFormImage.transform(files.contractFormImage[0]);
+    }
+
     return await this.customersService.createCustomer(
       requestUserId,
       createCustomersDto,
       files?.passportPhoto?.[0],
       files?.idImage?.[0],
+      files?.contractFormImage?.[0],
     );
   }
 
@@ -154,6 +165,7 @@ export class CustomersController {
     FileFieldsInterceptor([
       { name: 'passportPhoto', maxCount: 1 },
       { name: 'idImage', maxCount: 1 },
+      { name: 'contractFormImage', maxCount: 1 },
     ]),
   )
   async updateCustomer(
@@ -163,6 +175,7 @@ export class CustomersController {
     files: {
       passportPhoto?: Express.Multer.File[];
       idImage?: Express.Multer.File[];
+      contractFormImage?: Express.Multer.File[];
     },
   ) {
     // Validate files if provided
@@ -182,11 +195,20 @@ export class CustomersController {
       await idImageValidator.transform(files.idImage[0]);
     }
 
+    if (files?.contractFormImage?.[0]) {
+      const contractFormImage = new ParseFilePipeBuilder()
+        .addFileTypeValidator({ fileType: /(jpeg|jpg|png|svg)$/i })
+        .build({ errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY });
+
+      await contractFormImage.transform(files.contractFormImage[0]);
+    }
+
     return await this.customersService.updateCustomer(
       id,
       updateCustomerDto,
       files?.passportPhoto?.[0],
       files?.idImage?.[0],
+      files?.contractFormImage?.[0],
     );
   }
 

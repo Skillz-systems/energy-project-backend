@@ -21,6 +21,8 @@ model Customer {
   idNumber   String?
   idImageUrl String?
 
+  contractFormImageUrl String?
+
   status UserStatus @default(active)
 
   type     CustomerType       @default(lead)

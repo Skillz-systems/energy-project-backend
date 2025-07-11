@@ -32,6 +32,7 @@ export class CustomersService {
     createCustomerDto: CreateCustomerDto,
     passportPhoto?: Express.Multer.File,
     idImage?: Express.Multer.File,
+    contractFormImage?: Express.Multer.File,
   ) {
     const {
       longitude,
@@ -50,7 +51,7 @@ export class CustomersService {
       idType,
       idNumber,
       type,
-      ...rest
+      // ...rest
     } = createCustomerDto;
 
     if (email) {
@@ -66,6 +67,7 @@ export class CustomersService {
     // Upload images if provided
     let passportPhotoUrl: string | undefined;
     let idImageUrl: string | undefined;
+    let contractFormImageUrl: string | undefined;
 
     if (passportPhoto) {
       const uploadResult = await this.uploadCustomerImage(passportPhoto);
@@ -75,6 +77,11 @@ export class CustomersService {
     if (idImage) {
       const uploadResult = await this.uploadCustomerImage(idImage);
       idImageUrl = uploadResult.secure_url;
+    }
+
+    if (contractFormImageUrl) {
+      const uploadResult = await this.uploadCustomerImage(contractFormImage);
+      contractFormImageUrl = uploadResult.secure_url;
     }
 
     await this.prisma.customer.create({
@@ -98,7 +105,8 @@ export class CustomersService {
         ...(type && { type }),
         ...(passportPhotoUrl && { passportPhotoUrl }),
         ...(idImageUrl && { idImageUrl }),
-        ...rest,
+        ...(contractFormImageUrl && { contractFormImageUrl }),
+        // ...rest,
       },
     });
 
@@ -284,6 +292,7 @@ export class CustomersService {
     updateCustomerDto: UpdateCustomerDto,
     passportPhoto?: Express.Multer.File,
     idImage?: Express.Multer.File,
+    contractFormImage?: Express.Multer.File,
   ) {
     const {
       longitude,
@@ -302,7 +311,7 @@ export class CustomersService {
       idType,
       idNumber,
       type,
-      ...rest
+      // ...rest
     } = updateCustomerDto;
 
     const existingCustomer = await this.prisma.customer.findUnique({
@@ -329,6 +338,7 @@ export class CustomersService {
     // Handle image uploads
     let passportPhotoUrl: string | null | undefined = undefined;
     let idImageUrl: string | null | undefined = undefined;
+    let contractFormImageUrl: string | undefined;
 
     if (passportPhoto) {
       const uploadResult = await this.uploadCustomerImage(passportPhoto);
@@ -339,6 +349,12 @@ export class CustomersService {
       const uploadResult = await this.uploadCustomerImage(idImage);
       idImageUrl = uploadResult.secure_url;
     }
+
+    if (contractFormImageUrl) {
+      const uploadResult = await this.uploadCustomerImage(contractFormImage);
+      contractFormImageUrl = uploadResult.secure_url;
+    }
+
 
     // Prepare update data
     const updateData: any = {
@@ -360,7 +376,8 @@ export class CustomersService {
       ...(type !== undefined && { type }),
       ...(passportPhotoUrl !== undefined && { passportPhotoUrl }),
       ...(idImageUrl !== undefined && { idImageUrl }),
-      ...rest,
+      ...(contractFormImageUrl !== undefined && { contractFormImageUrl }),
+      // ...rest,
     };
 
     const updatedCustomer = await this.prisma.customer.update({

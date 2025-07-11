@@ -238,6 +238,11 @@ export class SalesRowDto {
   @ApiPropertyOptional({ description: 'Signed contract URL or reference' })
   signedContractUrl?: string;
 
+  @ApiPropertyOptional({
+    description: 'Contract form image URL (Google Drive or direct link)',
+  })
+  contractFormImageUrl?: string;
+
   // Customer Category
   @ApiPropertyOptional({ description: 'Customer category (lead/purchase)' })
   customerCategory?: string;
