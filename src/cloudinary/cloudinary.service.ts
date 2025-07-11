@@ -86,10 +86,12 @@ export class CloudinaryService {
 
     try {
       // Convert Google Drive URL if needed
-      const directUrl = this.convertGoogleDriveUrl(imageUrl);
-      if (!directUrl) {
-        return null;
-      }
+      // const directUrl = this.convertGoogleDriveUrl(imageUrl);
+      // if (!directUrl) {
+      //   return null;
+      // }
+
+      const directUrl = imageUrl
 
       // Download the image
       const imageBuffer = await this.downloadImageFromUrl(directUrl);
