@@ -199,16 +199,24 @@ export class PaymentService {
       throw new NotFoundException('Sale not found');
     }
 
+    const installmentInfo = this.calculateInstallmentProgress(
+      sale,
+      paymentData.amount,
+    );
+
     const updatedSale = await this.prisma.sales.update({
       where: { id: sale.id },
       data: {
         totalPaid: {
           increment: paymentData.amount,
         },
-        status:
-          sale.totalPaid + paymentData.amount >= sale.totalPrice
-            ? SalesStatus.COMPLETED
-            : SalesStatus.IN_INSTALLMENT,
+        // status:
+        //   sale.totalPaid + paymentData.amount >= sale.totalPrice
+        //     ? SalesStatus.COMPLETED
+        //     : SalesStatus.IN_INSTALLMENT,
+
+        remainingInstallments: installmentInfo.newRemainingDuration,
+        status: installmentInfo.newStatus,
       },
     });
 
@@ -226,11 +234,16 @@ export class PaymentService {
           tokenDuration = -1; // Represents forever
         } else {
           // Calculate token duration based on payment
-          const monthlyPayment =
-            (saleItem.totalPrice - saleItem.installmentStartingPrice) /
-            saleItem.installmentDuration;
-          const monthsCovered = Math.floor(paymentData.amount / monthlyPayment);
-          tokenDuration = monthsCovered * 30; // Convert months to days
+          // const monthlyPayment =
+          //   (saleItem.totalPrice - saleItem.installmentStartingPrice) /
+          //   saleItem.installmentDuration;
+          // const monthsCovered = Math.floor(paymentData.amount / monthlyPayment);
+          // tokenDuration = monthsCovered * 30; // Convert months to days
+
+          tokenDuration =
+            installmentInfo.monthsCovered == -1
+              ? installmentInfo.monthsCovered
+              : installmentInfo.monthsCovered * 30;
         }
 
         for (const device of tokenableDevices) {
@@ -349,6 +362,84 @@ export class PaymentService {
     }
 
     return updatedSale;
+  }
+
+  private calculateInstallmentProgress(sale: any, paymentAmount: number) {
+    const currentTotalPaid = sale.totalPaid;
+    const newTotalPaid = currentTotalPaid + paymentAmount;
+    const totalPrice = sale.totalPrice;
+    const monthlyPayment = sale.totalMonthlyPayment;
+    const currentRemainingDuration = sale.totalInstallmentDuration;
+
+    // Check if sale is fully paid
+    if (newTotalPaid >= totalPrice) {
+      return {
+        newStatus: SalesStatus.COMPLETED,
+        newRemainingDuration: 0,
+        monthsCovered: -1, // Forever token
+      };
+    }
+
+    // For non-installment sales, don't change duration
+    if (monthlyPayment <= 0) {
+      return {
+        newStatus:
+          newTotalPaid >= totalPrice
+            ? SalesStatus.COMPLETED
+            : SalesStatus.UNPAID,
+        newRemainingDuration: currentRemainingDuration,
+        monthsCovered: 0,
+      };
+    }
+
+    // Installment logic
+    const remainingBalance = totalPrice - newTotalPaid;
+
+    // Calculate how many months this payment covers
+    let monthsCovered = 0;
+    let excessPayment = paymentAmount;
+
+    // Check if payment meets minimum monthly requirement
+    if (paymentAmount >= monthlyPayment) {
+      monthsCovered = Math.floor(paymentAmount / monthlyPayment);
+      excessPayment = paymentAmount % monthlyPayment;
+    } else {
+      // Payment is less than monthly amount - no duration reduction
+      monthsCovered = 0;
+    }
+
+    // Calculate new remaining duration
+    let newRemainingDuration = Math.max(
+      0,
+      currentRemainingDuration - monthsCovered,
+    );
+
+    // If there's excess payment, further reduce duration
+    if (excessPayment > 0 && newRemainingDuration > 0) {
+      const additionalMonthsCovered = Math.floor(
+        excessPayment / monthlyPayment,
+      );
+      newRemainingDuration = Math.max(
+        0,
+        newRemainingDuration - additionalMonthsCovered,
+      );
+    }
+
+    // Ensure we don't go below 0 or create impossible scenarios
+    if (remainingBalance <= monthlyPayment) {
+      newRemainingDuration = Math.min(newRemainingDuration, 1);
+    }
+
+    const newStatus =
+      newRemainingDuration === 0
+        ? SalesStatus.COMPLETED
+        : SalesStatus.IN_INSTALLMENT;
+
+    return {
+      newStatus,
+      newRemainingDuration,
+      monthsCovered: monthsCovered > 0 ? monthsCovered : 0,
+    };
   }
 
   private formatInstallmentAccountMessage(

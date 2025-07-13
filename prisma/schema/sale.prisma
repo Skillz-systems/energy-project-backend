@@ -17,16 +17,17 @@ model Sales {
   creatorId      String? @db.ObjectId
   creatorDetails User?   @relation(fields: [creatorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  payment    Payment[]
+  payment Payment[]
 
   paymentMethod PaymentMethod @default(ONLINE)
-  
-  totalPrice Float     @default(0)
-  totalPaid  Float     @default(0)
+
+  totalPrice Float @default(0)
+  totalPaid  Float @default(0)
 
   totalMonthlyPayment      Float @default(0)
   installmentStartingPrice Float @default(0)
   totalInstallmentDuration Int   @default(0)
+  remainingInstallments    Int?  @default(0)
 
   installmentAccountDetailsId String?                    @db.ObjectId
   installmentAccountDetails   InstallmentAccountDetails? @relation(fields: [installmentAccountDetailsId], references: [id])
