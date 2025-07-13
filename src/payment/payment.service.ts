@@ -365,11 +365,12 @@ export class PaymentService {
   }
 
   private calculateInstallmentProgress(sale: any, paymentAmount: number) {
-    const currentTotalPaid = sale.totalPaid;
+    const currentTotalPaid = sale.totalPaid - sale.totalMiscellaneousPrice;
     const newTotalPaid = currentTotalPaid + paymentAmount;
     const totalPrice = sale.totalPrice;
     const monthlyPayment = sale.totalMonthlyPayment;
-    const currentRemainingDuration = sale.totalInstallmentDuration;
+    const currentRemainingDuration = sale.remainingInstallments || 0;
+    const originalDuration = sale.totalInstallmentDuration || 0;
 
     // Check if sale is fully paid
     if (newTotalPaid >= totalPrice) {
@@ -392,41 +393,22 @@ export class PaymentService {
       };
     }
 
-    // Installment logic
-    const remainingBalance = totalPrice - newTotalPaid;
+    const totalMonthsCoveredByAllPayments = Math.floor(
+      newTotalPaid / monthlyPayment,
+    );
+    const previousMonthsCovered = Math.floor(currentTotalPaid / monthlyPayment);
 
-    // Calculate how many months this payment covers
-    let monthsCovered = 0;
-    let excessPayment = paymentAmount;
+    // Months covered by this specific payment
+    const monthsCoveredByThisPayment =
+      totalMonthsCoveredByAllPayments - previousMonthsCovered;
 
-    // Check if payment meets minimum monthly requirement
-    if (paymentAmount >= monthlyPayment) {
-      monthsCovered = Math.floor(paymentAmount / monthlyPayment);
-      excessPayment = paymentAmount % monthlyPayment;
-    } else {
-      // Payment is less than monthly amount - no duration reduction
-      monthsCovered = 0;
-    }
-
-    // Calculate new remaining duration
     let newRemainingDuration = Math.max(
       0,
-      currentRemainingDuration - monthsCovered,
+      originalDuration - totalMonthsCoveredByAllPayments,
     );
 
-    // If there's excess payment, further reduce duration
-    if (excessPayment > 0 && newRemainingDuration > 0) {
-      const additionalMonthsCovered = Math.floor(
-        excessPayment / monthlyPayment,
-      );
-      newRemainingDuration = Math.max(
-        0,
-        newRemainingDuration - additionalMonthsCovered,
-      );
-    }
-
-    // Ensure we don't go below 0 or create impossible scenarios
-    if (remainingBalance <= monthlyPayment) {
+    const remainingBalance = totalPrice - newTotalPaid;
+    if (remainingBalance <= monthlyPayment && remainingBalance > 0) {
       newRemainingDuration = Math.min(newRemainingDuration, 1);
     }
 
@@ -438,7 +420,7 @@ export class PaymentService {
     return {
       newStatus,
       newRemainingDuration,
-      monthsCovered: monthsCovered > 0 ? monthsCovered : 0,
+      monthsCovered: monthsCoveredByThisPayment,
     };
   }
 

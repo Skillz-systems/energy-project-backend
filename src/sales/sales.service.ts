@@ -66,13 +66,25 @@ export class SalesService {
       0,
     );
 
-    const totalInstallmentDuration = processedItems.reduce(
-      (sum, item) => sum + (item.duration || 0),
+    // const totalInstallmentDuration = processedItems.reduce(
+    //   (sum, item) => sum + (item.duration || 0),
+    //   0,
+    // );
+
+    const totalInstallmentDuration = Math.max(
+      ...processedItems
+        .filter((item) => item.paymentMode === PaymentMode.INSTALLMENT)
+        .map((item) => item.duration || 0),
       0,
     );
 
     const totalMonthlyPayment = processedItems.reduce(
       (sum, item) => sum + (item.monthlyPayment || 0),
+      0,
+    );
+
+    const totalMiscellaneousPrice = processedItems.reduce(
+      (sum, item) => sum + (item.miscTotal || 0),
       0,
     );
 
@@ -112,6 +124,8 @@ export class SalesService {
           totalPrice: totalAmount,
           installmentStartingPrice: totalInstallmentStartingPrice,
           totalInstallmentDuration,
+          remainingInstallments: totalInstallmentDuration - 1,
+          totalMiscellaneousPrice,
           totalMonthlyPayment,
           status: SalesStatus.UNPAID,
           batchAllocations: {
@@ -364,7 +378,9 @@ export class SalesService {
     }
 
     // Check if payment amount is valid
-    const remainingAmount = sale.totalPrice - sale.totalPaid;
+    const remainingAmount =
+      sale.totalPrice - (sale.totalPaid - sale.totalMiscellaneousPrice);
+
     if (dto.amount > Math.ceil(remainingAmount)) {
       throw new BadRequestException(
         `Payment amount (${dto.amount}) exceeds remaining balance (${Math.ceil(remainingAmount)})`,
@@ -484,6 +500,7 @@ export class SalesService {
       ...saleItem,
       totalPrice,
       batchAllocation: batchAllocations,
+      miscTotal,
     };
 
     if (saleItem.paymentMode === PaymentMode.ONE_OFF) {
@@ -518,7 +535,7 @@ export class SalesService {
       const installmentTotalPrice = saleItem.installmentStartingPrice;
 
       processedItem.totalPrice = totalWithMargin;
-      // processedItem.duration = numberOfMonths;
+      processedItem.duration = numberOfMonths;
       // processedItem.installmentTotalPrice = installmentTotalPrice;
       processedItem.installmentTotalPrice = installmentTotalPrice + miscTotal;
       processedItem.monthlyPayment =

@@ -21,8 +21,9 @@ model Sales {
 
   paymentMethod PaymentMethod @default(ONLINE)
 
-  totalPrice Float @default(0)
-  totalPaid  Float @default(0)
+  totalPrice              Float @default(0)
+  totalMiscellaneousPrice Float @default(0)
+  totalPaid               Float @default(0)
 
   totalMonthlyPayment      Float @default(0)
   installmentStartingPrice Float @default(0)
