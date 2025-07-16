@@ -204,6 +204,8 @@ export class PaymentService {
       paymentData.amount,
     );
 
+    console.log({ installmentInfo });
+
     const updatedSale = await this.prisma.sales.update({
       where: { id: sale.id },
       data: {

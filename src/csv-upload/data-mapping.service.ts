@@ -89,10 +89,10 @@ export class DataMappingService {
 
       // Product and payment
       productType: this.cleanString(row.productType) || 'Unknown Product',
-      paymentOption: this.normalizePaymentOption(row.paymentOption),
       initialDeposit: this.parseAmount(row.initialDeposit),
       paymentPeriod: this.parseNumber(row.paymentPeriod),
-      paymentType: this.cleanString(row.paymentType),
+      paymentType: this.normalizePaymentType(row.paymentType),
+      paymentOption: this.cleanString(row.paymentOption),
       totalPayment: this.parseAmount(row.totalPayment),
 
       // Device and installation
@@ -135,6 +135,7 @@ export class DataMappingService {
       username,
       firstname: agentNames.firstname,
       lastname: agentNames.lastname,
+      fullname: extractedData.salesAgent,
     };
   }
 
@@ -234,8 +235,8 @@ export class DataMappingService {
       guarantorDateOfBirth: null,
 
       // Customer ID information
-      idType: extractedData.idType || null,
-      idNumber: extractedData.idNumber || null,
+      idType: null,
+      idNumber: null,
       issuingCountry: 'Nigeria',
       issueDate: null,
       expirationDate: null,
@@ -259,23 +260,33 @@ export class DataMappingService {
   private transformSaleData(extractedData: any) {
     // const estimatedPrice = this.estimateProductPrice(extractedData.productType);
     const estimatedPrice = extractedData.totalPayment || 144000;
-    const paymentMode = this.getPaymentMode(extractedData.paymentOption);
+    const paymentMode = this.getPaymentMode(extractedData.paymentType);
+    const paymentMethod = this.getPaymentMethod(extractedData.paymentOption);
     const totalPaid = extractedData.initialDeposit || 0;
+    const totalInstallmentDuration =
+      extractedData.paymentPeriod ||
+      (paymentMode === PaymentMode.INSTALLMENT ? 24 : 0);
 
-    // Determine sale status based on payment
+    const totalMonthlyPayment =
+      paymentMode === PaymentMode.INSTALLMENT
+        ? Math.ceil(
+            // (estimatedPrice - totalPaid) / extractedData.paymentPeriod,
+            estimatedPrice / extractedData.paymentPeriod,
+          )
+        : 0;
+
+    const totalMiscellaneousPrice = Math.max(
+      totalPaid - totalMonthlyPayment,
+      0,
+    );
+
+    const miscellaneousPrices = totalMiscellaneousPrice > 0 ? {misc1: totalMiscellaneousPrice} : null;
+
     let status: SalesStatus = SalesStatus.COMPLETED;
     if (paymentMode === PaymentMode.INSTALLMENT) {
       status = SalesStatus.IN_INSTALLMENT;
-      // status =
-      //   totalPaid >= estimatedPrice
-      //     ? SalesStatus.COMPLETED
-      //     : SalesStatus.IN_INSTALLMENT;
     } else {
       status = SalesStatus.COMPLETED;
-      // status =
-      //   totalPaid >= estimatedPrice
-      //     ? SalesStatus.COMPLETED
-      //     : SalesStatus.UNPAID;
     }
 
     return {
@@ -285,19 +296,15 @@ export class DataMappingService {
       totalPaid: totalPaid,
       installmentStartingPrice:
         paymentMode === PaymentMode.INSTALLMENT ? totalPaid : 0,
+      totalMiscellaneousPrice,
+      miscellaneousPrices, 
       paymentMode: paymentMode,
+      paymentMethod,
       transactionDate: extractedData.dateOfRegistration,
-
-      totalInstallmentDuration:
-        extractedData.paymentPeriod ||
-        (paymentMode === PaymentMode.INSTALLMENT ? 24 : 0),
-      totalMonthlyPayment:
-        paymentMode === PaymentMode.INSTALLMENT
-          ? Math.ceil(
-              // (estimatedPrice - totalPaid) / extractedData.paymentPeriod,
-              estimatedPrice / extractedData.paymentPeriod,
-            )
-          : 0,
+      installerName: extractedData.installerName || null,
+      totalInstallmentDuration,
+      remainingInstallments: Math.max(totalInstallmentDuration - 1, 0),
+      totalMonthlyPayment,
     };
   }
 
@@ -359,7 +366,7 @@ export class DataMappingService {
     return null;
   }
 
-  private normalizeIdType(idType: any): IDType | null {
+  private normalizeIdType(idType: any): IDType {
     if (!idType) return null;
 
     const type = idType.toString().toLowerCase().trim();
@@ -383,7 +390,7 @@ export class DataMappingService {
     else return 'residential';
   }
 
-  private normalizePaymentOption(option: any): string {
+  private normalizePaymentType(option: any): string {
     if (!option) return 'one_off';
     const opt = option.toString().toLowerCase().trim();
     if (opt.includes('install') || opt.includes('monthly'))
@@ -481,8 +488,8 @@ export class DataMappingService {
       return { firstname: names[0], lastname: 'Agent' };
     } else {
       return {
-        firstname: names[0],
-        lastname: names.slice(1).join(' '),
+        firstname: `${names[0]}(sheet)`,
+        lastname: `${names.slice(1).join(' ')}(sheet)`,
       };
     }
   }
@@ -518,6 +525,25 @@ export class DataMappingService {
     }
     return PaymentMode.ONE_OFF;
   }
+  private getPaymentMethod(paymentOption: string): PaymentMethod {
+    const option = paymentOption?.toLowerCase() || '';
+
+    if (option.includes('online') || option.includes('card')) {
+      return PaymentMethod.ONLINE;
+    } else if (option.includes('cash')) {
+      return PaymentMethod.CASH;
+    } else if (option.includes('ussd')) {
+      return PaymentMethod.USSD;
+    } else if (option.includes('transfer') || option.includes('bank')) {
+      return PaymentMethod.BANK_TRANSFER;
+    } else if (option.includes('pos')) {
+      return PaymentMethod.POS;
+    } else if (option.includes('wallet')) {
+      return PaymentMethod.WALLET;
+    }
+
+    return PaymentMethod.ONLINE;
+  }
 
   private calculateMonthlyPayment(
     totalPrice: number,
@@ -536,13 +562,8 @@ export class DataMappingService {
   }
 
   private shouldCreateContract(extractedData: any): boolean {
-    // Create contract if we have guarantor info, ID info, or it's an installment payment
-    return !!(
-      extractedData.guarantorName ||
-      extractedData.idType ||
-      extractedData.signedContractUrl ||
-      extractedData.paymentOption?.toLowerCase().includes('install')
-    );
+    // Create contract if we have guarantor info
+    return !!extractedData.guarantorName;
   }
 
   private hasInitialPayment(extractedData: any): boolean {

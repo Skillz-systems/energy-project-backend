@@ -7,6 +7,7 @@ import {
   BadRequestException,
   HttpStatus,
   HttpCode,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -28,6 +29,11 @@ import {
 } from './dto/csv-upload.dto';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
+import { RolesAndPermissionsGuard } from 'src/auth/guards/roles.guard';
+import { RolesAndPermissions } from 'src/auth/decorators/roles.decorator';
+import { ActionEnum, SubjectEnum } from '@prisma/client';
+import { GetSessionUser } from 'src/auth/decorators/getUser';
 
 @ApiTags('CSV Data Migration')
 @Controller('csv-upload')
@@ -37,6 +43,10 @@ export class CsvUploadController {
     @InjectQueue('csv-processing') private readonly csvQueue: Queue,
   ) {}
 
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Sales}`],
+  })
   @Post('validate')
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({
@@ -85,6 +95,10 @@ export class CsvUploadController {
     return await this.csvUploadService.validateSalesFile(file);
   }
 
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Sales}`],
+  })
   @Post('process')
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({
@@ -133,6 +147,7 @@ export class CsvUploadController {
   async processFile(
     @UploadedFile() file: Express.Multer.File,
     @Body() processCsvDto: ProcessCsvDto,
+    @GetSessionUser('id') sessionUserId: string,
   ): Promise<CsvUploadResponseDto> {
     if (!file) {
       throw new BadRequestException('No file uploaded');
@@ -158,9 +173,17 @@ export class CsvUploadController {
       );
     }
 
-    return await this.csvUploadService.processSalesFile(file, processCsvDto);
+    return await this.csvUploadService.processSalesFile(
+      file,
+      processCsvDto,
+      sessionUserId,
+    );
   }
 
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Sales}`],
+  })
   @Post('get-upload-stats')
   @ApiOperation({
     summary: 'Get upload session statistics',

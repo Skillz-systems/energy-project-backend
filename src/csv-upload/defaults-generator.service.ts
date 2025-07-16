@@ -17,7 +17,7 @@ export class DefaultsGeneratorService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async generateDefaults(): Promise<{
+  async generateDefaults(sessionUserId: string): Promise<{
     categories: { product: any; inventory: any };
     defaultUser: any;
     defaultRole: any;
@@ -29,7 +29,7 @@ export class DefaultsGeneratorService {
 
     const defaults = {
       categories: await this.ensureDefaultCategories(),
-      defaultUser: await this.ensureDefaultUser(defaultPassword),
+      defaultUser: await this.ensureDefaultUser(defaultPassword, sessionUserId),
       defaultRole: await this.ensureDefaultRole(),
       defaultPassword: await hashPassword(defaultPassword),
     };
@@ -84,9 +84,14 @@ export class DefaultsGeneratorService {
     };
   }
 
-  private async ensureDefaultUser(plainPassword: string): Promise<any> {
+  private async ensureDefaultUser(
+    plainPassword: string,
+    sessionUserId: string,
+  ): Promise<any> {
     let defaultUser = await this.prisma.user.findFirst({
-      where: { email: 'csv.migration@gmail.com' },
+      where: {
+        OR: [{ id: sessionUserId }, { email: 'csv.migration@gmail.com' }],
+      },
     });
 
     if (!defaultUser) {

@@ -47,4 +47,8 @@ enum PaymentStatus {
 enum PaymentMethod {
   ONLINE
   CASH
+  USSD
+  BANK_TRANSFER
+  POS
+  WALLET
 }

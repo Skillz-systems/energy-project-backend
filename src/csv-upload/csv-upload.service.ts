@@ -96,6 +96,7 @@ export class CsvUploadService {
 
     // ID Information
     ['type of i.d', 'idType'],
+    ['type of i d', 'idType'],
     ['type_of_id', 'idType'],
     ['id type', 'idType'],
     ['id_type', 'idType'],
@@ -123,10 +124,12 @@ export class CsvUploadService {
 
     // Guarantor Info
     ["guarantor's name", 'guarantorName'],
+    ["guarantor s name", 'guarantorName'],
     ['guarantors name', 'guarantorName'],
     ['guarantor_name', 'guarantorName'],
     ['guarantor name', 'guarantorName'],
     ["guarantor's number", 'guarantorNumber'],
+    ["guarantor s number", 'guarantorNumber'],
     ['guarantors number', 'guarantorNumber'],
     ['guarantor_number', 'guarantorNumber'],
     ['guarantor number', 'guarantorNumber'],
@@ -241,6 +244,7 @@ export class CsvUploadService {
   async processSalesFile(
     file: Express.Multer.File,
     processCsvDto: ProcessCsvDto,
+    sessionUserId: string,
   ): Promise<CsvUploadResponseDto> {
     const sessionId = uuidv4();
     this.logger.log(`Starting sales file processing session: ${sessionId}`);
@@ -264,7 +268,8 @@ export class CsvUploadService {
       }
 
       // Generate defaults and setup mapping
-      const generatedDefaults = await this.defaultsGenerator.generateDefaults();
+      const generatedDefaults =
+        await this.defaultsGenerator.generateDefaults(sessionUserId);
       const columnMapping = this.mapColumns(headers);
 
       // Transform data using column mapping
@@ -409,7 +414,7 @@ export class CsvUploadService {
     return session.stats;
   }
 
-   private mapColumns(headers: string[]): Map<string, string> {
+  private mapColumns(headers: string[]): Map<string, string> {
     const mapping = new Map<string, string>();
 
     for (const header of headers) {
@@ -566,19 +571,19 @@ export class CsvUploadService {
     // Process each entity in proper order (dependencies first)
 
     // 1. Create or find agent
-    let agent = null;
-    if (transformedData.agentData) {
-      agent = await this.createOrFindAgent(
-        transformedData.agentData,
-        generatedDefaults,
-      );
-    }
+    // let agent = null;
+    // if (transformedData.agentData) {
+    //   agent = await this.createOrFindAgent(
+    //     transformedData.agentData,
+    //     generatedDefaults,
+    //   );
+    // }
 
     // 2. Create or find customer
     const customer = await this.createOrFindCustomer(
       transformedData.customerData,
       generatedDefaults,
-      agent?.id,
+      // agent?.id,
     );
 
     // 3. Create or find product
@@ -609,6 +614,7 @@ export class CsvUploadService {
       device?.id,
       contract?.id,
       generatedDefaults,
+      transformedData.agentData.fullname,
     );
 
     // 7. Create initial payment if there's a deposit
@@ -921,13 +927,15 @@ export class CsvUploadService {
     deviceId?: string,
     contractId?: string,
     generatedDefaults?: any,
+    agentName?: string,
   ): Promise<any> {
     try {
-      const { paymentMode, ...rest } = saleData;
+      const { paymentMode, miscellaneousPrices, ...rest } = saleData;
       // Create sale
       const sale = await this.prisma.sales.create({
         data: {
           ...rest,
+          agentName,
           customerId,
           contractId,
           creatorId: generatedDefaults.defaultUser.id,
@@ -941,6 +949,10 @@ export class CsvUploadService {
           productId,
           quantity: 1,
           totalPrice: saleData.totalPrice,
+          monthlyPayment: saleData.totalMonthlyPayment || 0,
+          installmentDuration: saleData.totalInstallmentDuration || 0,
+          installmentStartingPrice: saleData.totalPaid || 0,
+          miscellaneousPrices,
           paymentMode: paymentMode || PaymentMode.ONE_OFF,
           deviceIDs: deviceId ? [deviceId] : [],
         },

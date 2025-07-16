@@ -2,6 +2,7 @@ model Agent {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
   customers Customer[]
+  sales     Sales[]
 
   agentId Int
 

@@ -19,6 +19,8 @@ import { BatchAllocation, ProcessedSaleItem } from './sales.interface';
 import { CreateFinancialMarginDto } from './dto/create-financial-margins.dto';
 import { RecordCashPaymentDto } from 'src/payment/dto/cash-payment.dto';
 import { ListSalesQueryDto } from './dto/list-sales.dto';
+import { plainToInstance } from 'class-transformer';
+import { UserEntity } from 'src/users/entity/user.entity';
 
 @Injectable()
 export class SalesService {
@@ -246,6 +248,7 @@ export class SalesService {
       totalAmountToPay,
       sale.customer.email || `${sale.customer.phone}@gmail.com`,
       transactionRef,
+      dto.paymentMethod,
     );
   }
 
@@ -275,6 +278,12 @@ export class SalesService {
           sale: {
             include: {
               customer: true,
+              creatorDetails: true,
+              agent: {
+                include: {
+                  user: true,
+                },
+              },
               payment: {
                 include: {
                   recordedBy: {
@@ -301,7 +310,25 @@ export class SalesService {
     ]);
 
     return {
-      saleItems,
+      saleItems: saleItems.map((item) => {
+        return {
+          ...item,
+          sale: {
+            ...item.sale,
+            creatorDetails: plainToInstance(
+              UserEntity,
+              item.sale.creatorDetails,
+            ),
+            agent: {
+              ...item.sale.agent,
+              user: item.sale.agent?.user? plainToInstance(
+                UserEntity,
+                item.sale.agent.user,
+              ): undefined,
+            },
+          },
+        };
+      }),
       total: totalCount,
       page: pageNumber,
       limit: limitNumber,
@@ -320,6 +347,12 @@ export class SalesService {
             customer: true,
             payment: true,
             installmentAccountDetails: true,
+            creatorDetails: true,
+            agent: {
+              include: {
+                user: true,
+              },
+            }
           },
         },
         devices: {
@@ -342,7 +375,15 @@ export class SalesService {
 
     if (!saleItem) return new BadRequestException(`saleItem ${id} not found`);
 
-    return saleItem;
+    saleItem.sale.creatorDetails = plainToInstance(UserEntity, saleItem.sale.creatorDetails)
+
+    if (saleItem.sale.agent?.user){
+      saleItem.sale.agent.user = plainToInstance(
+        UserEntity,
+        saleItem.sale.agent.user,
+      );
+    }
+    return saleItem
   }
 
   async recordCashPayment(recordedById: string, dto: RecordCashPaymentDto) {

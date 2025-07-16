@@ -17,6 +17,12 @@ model Sales {
   creatorId      String? @db.ObjectId
   creatorDetails User?   @relation(fields: [creatorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  installerName  String?
+  agentName String?
+
+  agentId String? @db.ObjectId
+  agent   Agent?  @relation(fields: [agentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
   payment Payment[]
 
   paymentMethod PaymentMethod @default(ONLINE)
