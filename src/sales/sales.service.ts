@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -20,7 +21,10 @@ import { CreateFinancialMarginDto } from './dto/create-financial-margins.dto';
 import { RecordCashPaymentDto } from 'src/payment/dto/cash-payment.dto';
 import { ListSalesQueryDto } from './dto/list-sales.dto';
 import { plainToInstance } from 'class-transformer';
-import { UserEntity } from 'src/users/entity/user.entity';
+import { UserEntity } from '../users/entity/user.entity';
+import { WalletService } from '../wallet/wallet.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 @Injectable()
 export class SalesService {
@@ -28,9 +32,13 @@ export class SalesService {
     private readonly prisma: PrismaService,
     private readonly contractService: ContractService,
     private readonly paymentService: PaymentService,
+    private readonly walletService: WalletService,
+    @InjectQueue('payment-queue') private paymentQueue: Queue,
   ) {}
 
-  async createSale(creatorId: string, dto: CreateSalesDto) {
+  async createSale(creatorId: string, dto: CreateSalesDto, agentId?: string) {
+    if (agentId) await this.validateAgentAccess(agentId, dto);
+
     // Validate sales relations
     await this.validateSalesRelations(dto);
 
@@ -115,6 +123,15 @@ export class SalesService {
     //     'Contract details are required for installment payments',
     //   );
     // }
+
+    if (agentId) {
+      const walletBalance = await this.walletService.getWalletBalance(agentId);
+      if (walletBalance < totalAmountToPay) {
+        throw new BadRequestException(
+          `Insufficient wallet balance. Required: ₦${totalAmount}, Available: ₦${walletBalance}`,
+        );
+      }
+    }
 
     let sale: any;
 
@@ -210,31 +227,31 @@ export class SalesService {
         data: { contractId: contract.id },
       });
 
-      if (dto.bvn && dto.paymentMethod === PaymentMethod.ONLINE) {
-        const tempAccountDetails =
-          await this.paymentService.generateStaticAccount(
-            sale.id,
-            sale.customer.email || `${sale.customer.phone}@gmail.com`,
-            dto.bvn,
-            transactionRef,
-          );
-        await this.prisma.installmentAccountDetails.create({
-          data: {
-            sales: {
-              connect: { id: sale.id },
-            },
-            flw_ref: tempAccountDetails.flw_ref,
-            order_ref: tempAccountDetails.order_ref,
-            account_number: tempAccountDetails.account_number,
-            account_status: tempAccountDetails.account_status,
-            frequency: tempAccountDetails.frequency,
-            bank_name: tempAccountDetails.bank_name,
-            expiry_date: tempAccountDetails.expiry_date,
-            note: tempAccountDetails.note,
-            amount: tempAccountDetails.amount,
-          },
-        });
-      }
+      // if (dto.bvn && dto.paymentMethod === PaymentMethod.ONLINE) {
+      //   const tempAccountDetails =
+      //     await this.paymentService.generateStaticAccount(
+      //       sale.id,
+      //       sale.customer.email || `${sale.customer.phone}@gmail.com`,
+      //       dto.bvn,
+      //       transactionRef,
+      //     );
+      //   await this.prisma.installmentAccountDetails.create({
+      //     data: {
+      //       sales: {
+      //         connect: { id: sale.id },
+      //       },
+      //       flw_ref: tempAccountDetails.flw_ref,
+      //       order_ref: tempAccountDetails.order_ref,
+      //       account_number: tempAccountDetails.account_number,
+      //       account_status: tempAccountDetails.account_status,
+      //       frequency: tempAccountDetails.frequency,
+      //       bank_name: tempAccountDetails.bank_name,
+      //       expiry_date: tempAccountDetails.expiry_date,
+      //       note: tempAccountDetails.note,
+      //       amount: tempAccountDetails.amount,
+      //     },
+      //   });
+      // }
     }
 
     // return await this.paymentService.generatePaymentLink(
@@ -243,6 +260,54 @@ export class SalesService {
     //   sale.customer.email,
     // transactionRef
     // );
+
+    if (agentId) {
+      await this.prisma.$transaction(async (prisma) => {
+        await this.walletService.debitWallet(
+          agentId,
+          totalAmountToPay,
+          `sale-${sale.id}`,
+          `Payment for sale ${sale.id}`,
+          sale.id,
+        );
+
+        const paymentData = await prisma.payment.create({
+          data: {
+            sale: {
+              connect: {
+                id: sale.id,
+              },
+            },
+            amount: totalAmountToPay,
+            transactionRef,
+            paymentMethod: PaymentMethod.WALLET,
+            paymentStatus: PaymentStatus.COMPLETED,
+          },
+        });
+
+        const job = await this.paymentQueue.add(
+          'process-cash-payment',
+          { paymentData },
+          {
+            attempts: 3,
+            backoff: {
+              type: 'exponential',
+              delay: 5000,
+            },
+            removeOnComplete: true,
+            removeOnFail: false,
+            delay: 1000,
+          },
+        );
+        return {
+          jobId: job.id,
+          success: true,
+          message: 'Sale created successfully',
+          sale,
+        };
+      });
+    }
+
     return await this.paymentService.generatePaymentPayload(
       sale.id,
       totalAmountToPay,
@@ -252,7 +317,31 @@ export class SalesService {
     );
   }
 
-  async getAllSales(query: ListSalesQueryDto) {
+  private async validateAgentAccess(agentId: string, saleData: CreateSalesDto) {
+    // Validate customer access
+    const customerAccess = await this.prisma.agentCustomer.findFirst({
+      where: { agentId, customerId: saleData.customerId },
+    });
+
+    if (!customerAccess) {
+      throw new ForbiddenException('You do not have access to this customer');
+    }
+
+    // Validate product access
+    for (const item of saleData.saleItems) {
+      const productAccess = await this.prisma.agentProduct.findFirst({
+        where: { agentId, productId: item.productId },
+      });
+
+      if (!productAccess) {
+        throw new ForbiddenException(
+          `You do not have access to product ${item.productId}`,
+        );
+      }
+    }
+  }
+
+  async getAllSales(query: ListSalesQueryDto, agent?: string) {
     const { page = 1, limit = 100 } = query;
     const pageNumber = parseInt(String(page), 10);
     const limitNumber = parseInt(String(limit), 10);
@@ -265,6 +354,18 @@ export class SalesService {
     if (query.paymentMethod) {
       whereClause.sale = {
         paymentMethod: query.paymentMethod,
+      };
+    }
+
+    if (query.agentId) {
+      whereClause.sale = {
+        creatorId: query.agentId,
+      };
+    }
+
+    if (agent) {
+      whereClause.sale = {
+        creatorId: agent,
       };
     }
 
@@ -321,10 +422,9 @@ export class SalesService {
             ),
             agent: {
               ...item.sale.agent,
-              user: item.sale.agent?.user? plainToInstance(
-                UserEntity,
-                item.sale.agent.user,
-              ): undefined,
+              user: item.sale.agent?.user
+                ? plainToInstance(UserEntity, item.sale.agent.user)
+                : undefined,
             },
           },
         };
@@ -336,10 +436,13 @@ export class SalesService {
     };
   }
 
-  async getSale(id: string) {
+  async getSale(id: string, agent?: string) {
     const saleItem = await this.prisma.saleItem.findUnique({
       where: {
         id,
+        sale: {
+          creatorId: agent,
+        },
       },
       include: {
         sale: {
@@ -352,7 +455,7 @@ export class SalesService {
               include: {
                 user: true,
               },
-            }
+            },
           },
         },
         devices: {
@@ -375,15 +478,18 @@ export class SalesService {
 
     if (!saleItem) return new BadRequestException(`saleItem ${id} not found`);
 
-    saleItem.sale.creatorDetails = plainToInstance(UserEntity, saleItem.sale.creatorDetails)
+    saleItem.sale.creatorDetails = plainToInstance(
+      UserEntity,
+      saleItem.sale.creatorDetails,
+    );
 
-    if (saleItem.sale.agent?.user){
+    if (saleItem.sale.agent?.user) {
       saleItem.sale.agent.user = plainToInstance(
         UserEntity,
         saleItem.sale.agent.user,
       );
     }
-    return saleItem
+    return saleItem;
   }
 
   async recordCashPayment(recordedById: string, dto: RecordCashPaymentDto) {

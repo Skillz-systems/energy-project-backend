@@ -12,6 +12,7 @@ import { TermiiService } from '../termii/termii.service';
 import { ConfigService } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
 import { BullModule } from '@nestjs/bullmq';
+import { WalletModule } from 'src/wallet/wallet.module';
 
 @Module({
   imports: [
@@ -23,11 +24,22 @@ import { BullModule } from '@nestjs/bullmq';
     BullModule.registerQueue({
       name: 'payment-queue',
     }),
+    WalletModule,
   ],
   controllers: [SalesController],
   providers: [
     SalesService,
     PrismaService,
+    PaymentService,
+    OpenPayGoService,
+    ContractService,
+    EmailService,
+    FlutterwaveService,
+    TermiiService,
+    ConfigService,
+  ],
+  exports: [
+    SalesService,
     PaymentService,
     OpenPayGoService,
     ContractService,

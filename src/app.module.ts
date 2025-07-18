@@ -27,6 +27,10 @@ import { CronjobsModule } from './cronjobs/cronjobs.module';
 import { TermiiModule } from './termii/termii.module';
 import { JobstatusModule } from './jobstatus/jobstatus.module';
 import { CsvUploadModule } from './csv-upload/csv-upload.module';
+import { WalletModule } from './wallet/wallet.module';
+import { OgaranyaModule } from './ogaranya/ogaranya.module';
+import { InstallerModule } from './installer/installer.module';
+import { TaskManagementModule } from './task-management/task-management.module';
 
 @Module({
   imports: [
@@ -77,6 +81,10 @@ import { CsvUploadModule } from './csv-upload/csv-upload.module';
     TermiiModule,
     JobstatusModule,
     CsvUploadModule,
+    WalletModule,
+    OgaranyaModule,
+    InstallerModule,
+    TaskManagementModule,
   ],
   controllers: [AppController],
   providers: [

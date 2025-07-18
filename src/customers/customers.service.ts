@@ -79,7 +79,7 @@ export class CustomersService {
       idImageUrl = uploadResult.secure_url;
     }
 
-    if (contractFormImageUrl) {
+    if (contractFormImage) {
       const uploadResult = await this.uploadCustomerImage(contractFormImage);
       contractFormImageUrl = uploadResult.secure_url;
     }
@@ -125,6 +125,7 @@ export class CustomersService {
       alternatePhone,
       gender,
       location,
+      agentId,
       installationAddress,
       lga,
       state,
@@ -151,6 +152,13 @@ export class CustomersService {
           : {},
         firstname
           ? { firstname: { contains: firstname, mode: 'insensitive' } }
+          : {},
+        agentId
+          ? {
+              assignedAgents: {
+                some: { agentId },
+              },
+            }
           : {},
         lastname
           ? { lastname: { contains: lastname, mode: 'insensitive' } }
@@ -194,8 +202,7 @@ export class CustomersService {
     return filterConditions;
   }
 
-  async getCustomers(query: ListCustomersQueryDto) {
-    console.log({ query });
+  async getCustomers(query: ListCustomersQueryDto, agent?: string) {
     const { page = 1, limit = 100, sortField, sortOrder } = query;
 
     const filterConditions = await this.customerFilter(query);
@@ -215,6 +222,7 @@ export class CustomersService {
       take,
       where: {
         ...filterConditions,
+        assignedAgents: agent ? { some: { agentId: agent } } : undefined,
       },
       orderBy,
       include: {
@@ -226,10 +234,14 @@ export class CustomersService {
             email: true,
           },
         },
-        agent: {
+        assignedAgents: {
           select: {
-            user: {
-              select: { firstname: true, lastname: true, email: true },
+            agent: {
+              include: {
+                user: {
+                  select: { firstname: true, lastname: true, email: true },
+                },
+              },
             },
           },
         },
@@ -251,10 +263,11 @@ export class CustomersService {
     };
   }
 
-  async getCustomer(id: string) {
+  async getCustomer(id: string, agent?: string) {
     const customer = await this.prisma.customer.findUnique({
       where: {
         id,
+        assignedAgents: agent ? { some: { agentId: agent } } : undefined,
       },
       include: {
         creatorDetails: {
@@ -265,10 +278,14 @@ export class CustomersService {
             email: true,
           },
         },
-        agent: {
+        assignedAgents: {
           select: {
-            user: {
-              select: { firstname: true, lastname: true, email: true },
+            agent: {
+              include: {
+                user: {
+                  select: { firstname: true, lastname: true, email: true },
+                },
+              },
             },
           },
         },
@@ -350,11 +367,10 @@ export class CustomersService {
       idImageUrl = uploadResult.secure_url;
     }
 
-    if (contractFormImageUrl) {
+    if (contractFormImage) {
       const uploadResult = await this.uploadCustomerImage(contractFormImage);
       contractFormImageUrl = uploadResult.secure_url;
     }
-
 
     // Prepare update data
     const updateData: any = {

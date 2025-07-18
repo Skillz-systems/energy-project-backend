@@ -150,7 +150,7 @@ export class RolesService {
           throw new NotFoundException(`Role with id ${id} not found`);
         }
       }
-      console.log({error})
+      console.log({ error });
       throw new InternalServerErrorException('An unexpected error occurred');
     }
   }
@@ -162,13 +162,28 @@ export class RolesService {
     }
 
     try {
-      const role = await this.prisma.role.delete({
+      const role = await this.prisma.role.findFirst({
         where: { id },
+        include: {
+          _count: {
+            select: {
+              users: true,
+            },
+          },
+        },
       });
 
       if (!role) {
         throw new NotFoundException(`Role with id ${id} not found`);
       }
+
+      if (role._count.users > 0) {
+        throw new NotFoundException(`Cannot delete role. User's already assigned`);
+      }
+
+      await this.prisma.role.delete({
+        where: { id },
+      });
 
       return role;
     } catch (error) {

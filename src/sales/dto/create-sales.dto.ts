@@ -252,3 +252,14 @@ export class CreateSalesDto {
   @Type(() => GuarantorDto)
   guarantorDetails?: GuarantorDto;
 }
+
+export class CreateAgentSalesDto extends CreateSalesDto {
+  @ApiProperty({
+    description: 'Payment method for this sale.',
+    example: 'ONLINE',
+    enum: [PaymentMethod.ONLINE],
+  })
+  @IsNotEmpty()
+  @IsEnum([PaymentMethod.ONLINE])
+  paymentMethod: PaymentMethod;
+}

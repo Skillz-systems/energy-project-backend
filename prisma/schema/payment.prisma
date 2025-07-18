@@ -7,12 +7,18 @@ model Payment {
 
   paymentMethod PaymentMethod @default(ONLINE)
 
+  ogaranyaOrderId    String?
+  ogaranyaOrderRef   String?
+  ogaranyaSmsNumber  String?
+  ogaranyaSmsMessage String?
+
   recordedById String? @db.ObjectId
   recordedBy   User?   @relation("RecordedPayments", fields: [recordedById], references: [id])
 
   notes String?
 
-  paymentResponses PaymentResponses[]
+  paymentResponses   PaymentResponses[]
+  walletTransactions WalletTransaction[]
 
   saleId String @db.ObjectId
   sale   Sales  @relation(fields: [saleId], references: [id], onDelete: Cascade)

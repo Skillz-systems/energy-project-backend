@@ -1,5 +1,5 @@
 import { Exclude, Type } from 'class-transformer';
-import { AddressType, User, UserStatus } from '@prisma/client';
+import { AddressType, Agent, User, UserStatus } from '@prisma/client';
 import { RolesEntity } from '../../roles/entity/roles.entity';
 
 export class UserEntity implements Partial<User> {
@@ -17,6 +17,7 @@ export class UserEntity implements Partial<User> {
   longitude: string;
   latitude: string;
   emailVerified: boolean;
+  agentDetails: Agent;
   @Type(() => RolesEntity)
   role: RolesEntity;
 

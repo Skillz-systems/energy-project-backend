@@ -7,6 +7,7 @@ import {
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import { OmitType } from '@nestjs/mapped-types';
 
 export class GetProductsDto {
   @ApiPropertyOptional({
@@ -33,6 +34,14 @@ export class GetProductsDto {
   @IsOptional()
   @IsString()
   categoryId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by agent ID',
+    example: 'agent-id-123',
+  })
+  @IsOptional()
+  @IsString()
+  agentId?: string;
 
   @ApiPropertyOptional({ description: 'Filter by creation date (ISO format)' })
   @IsOptional()
@@ -73,3 +82,7 @@ export class GetProductsDto {
   @IsString()
   sortOrder?: 'asc' | 'desc';
 }
+
+export class GetAgentsProductsDto extends OmitType(GetProductsDto, [
+  'agentId',
+]) {}

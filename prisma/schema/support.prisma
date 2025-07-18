@@ -1,0 +1,32 @@
+model SupportTicket {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  agentId String @db.ObjectId
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  subject String
+  description String
+  status TicketStatus @default(OPEN)
+  priority TicketPriority @default(MEDIUM)
+
+  transactionId String? @db.ObjectId // Reference to related transaction
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("support_tickets")
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}

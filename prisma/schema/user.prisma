@@ -31,6 +31,10 @@ model User {
   createdSales            Sales[]
   createdInventoryBatches InventoryBatch[]
 
+  assignedProducts  AgentProduct[]  @relation("ProductAssigner")
+  assignedCustomers AgentCustomer[] @relation("CustomerAssigner")
+  assignedTasks     InstallerTask[] @relation("TaskAssigner")
+
   recordedPayments Payment[] @relation("RecordedPayments")
 
   createdAt DateTime  @default(now())

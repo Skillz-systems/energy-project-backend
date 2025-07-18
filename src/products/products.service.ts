@@ -13,6 +13,7 @@ import { CreateProductCategoryDto } from './dto/create-category.dto';
 import { CategoryTypes, Prisma } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { CategoryEntity } from 'src/utils/entity/category';
+import { UserEntity } from 'src/users/entity/user.entity';
 
 @Injectable()
 export class ProductsService {
@@ -109,12 +110,13 @@ export class ProductsService {
     return product;
   }
 
-  async getAllProducts(getProductsDto: GetProductsDto) {
+  async getAllProducts(getProductsDto: GetProductsDto, agent?: string) {
     const {
       page = 1,
       limit = 10,
       categoryId,
       createdAt,
+      agentId,
       updatedAt,
       sortField,
       sortOrder,
@@ -132,6 +134,13 @@ export class ProductsService {
             }
           : {},
         categoryId ? { categoryId } : {},
+        agentId
+          ? {
+              assignedAgents: {
+                some: { agentId },
+              },
+            }
+          : {},
         createdAt ? { createdAt: { gte: new Date(createdAt) } } : {},
         updatedAt ? { updatedAt: { gte: new Date(updatedAt) } } : {},
       ],
@@ -146,10 +155,13 @@ export class ProductsService {
     const orderBy = {
       [sortField || 'createdAt']: sortOrder || 'asc',
     };
-    
+
     // Fetch products with pagination and filters
     const result = await this.prisma.product.findMany({
-      where: whereConditions,
+      where: {
+        ...whereConditions,
+        assignedAgents: agent ? { some: { agentId: agent } } : undefined,
+      },
       skip,
       take,
       orderBy,
@@ -181,9 +193,12 @@ export class ProductsService {
     };
   }
 
-  async getProduct(id: string) {
+  async getProduct(id: string, agent?: string) {
     const product = await this.prisma.product.findUnique({
-      where: { id },
+      where: {
+        id,
+        assignedAgents: agent ? { some: { agentId: agent } } : undefined,
+      },
       include: {
         category: true,
         creatorDetails: true,
@@ -329,7 +344,7 @@ export class ProductsService {
       };
     }>,
   ) {
-    const { inventories, category, ...rest } = product;
+    const { inventories, category, creatorDetails, ...rest } = product;
     const { maximumInventoryBatchPrice, minimumInventoryBatchPrice } =
       inventories
         .map(({ quantity, inventory }) => {
@@ -366,7 +381,8 @@ export class ProductsService {
 
     return {
       ...rest,
-      inventories: inventories.map(({quantity, inventory }) => {
+      creatorDetails: plainToInstance(UserEntity, creatorDetails),
+      inventories: inventories.map(({ quantity, inventory }) => {
         const { batches, ...rest } = inventory;
 
         const totalRemainingQuantities = batches.reduce(
@@ -383,7 +399,7 @@ export class ProductsService {
           ...rest,
           totalRemainingQuantities,
           totalInitialQuantities,
-          productInventoryQuantity: quantity
+          productInventoryQuantity: quantity,
         };
       }),
       category: plainToInstance(CategoryEntity, category),

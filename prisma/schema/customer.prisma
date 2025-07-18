@@ -28,17 +28,17 @@ model Customer {
   type     CustomerType       @default(lead)
   products CustomerProducts[]
 
+  installerTask  InstallerTask[]
+  assignedAgents AgentCustomer[]
+
   sales Sales[]
 
   creatorId      String? @db.ObjectId
   creatorDetails User?   @relation(fields: [creatorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  agentId String? @db.ObjectId
-  agent   Agent?  @relation(fields: [agentId], references: [id])
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  deletedAt     DateTime?
 
   @@map("customers")
 }

@@ -1,0 +1,44 @@
+model InstallerTask {
+    id String @id @default(auto()) @map("_id") @db.ObjectId
+
+    installerAgentId String @db.ObjectId
+    installerAgent   Agent  @relation("InstallerTasks", fields: [installerAgentId], references: [id])
+
+    requestingAgentId String? @db.ObjectId
+    requestingAgent   Agent?  @relation("AssignedTasks", fields: [requestingAgentId], references: [id])
+
+    saleId String @db.ObjectId
+    sale   Sales  @relation(fields: [saleId], references: [id])
+
+    customerId String   @db.ObjectId
+    customer   Customer @relation(fields: [customerId], references: [id])
+
+    status              TaskStatus @default(PENDING)
+    description         String?
+    pickupLocation      String?
+    installationAddress String?
+
+    scheduledDate DateTime?
+    completedDate DateTime?
+
+    assignedBy String @db.ObjectId
+    assigner   User   @relation("TaskAssigner", fields: [assignedBy], references: [id])
+
+    acceptedAt      DateTime?
+    rejectedAt      DateTime?
+    rejectionReason String?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("installer_tasks")
+}
+
+enum TaskStatus {
+    PENDING
+    ACCEPTED
+    REJECTED
+    IN_PROGRESS
+    COMPLETED
+    CANCELLED
+}

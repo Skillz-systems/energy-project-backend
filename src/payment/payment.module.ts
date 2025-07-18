@@ -11,6 +11,8 @@ import { BullModule } from '@nestjs/bullmq';
 import { PaymentProcessor } from './payment.processor';
 import { TermiiService } from '../termii/termii.service';
 import { HttpModule } from '@nestjs/axios';
+import { OgaranyaService } from 'src/ogaranya/ogaranya.service';
+import { WalletService } from 'src/wallet/wallet.service';
 
 @Module({
   imports: [
@@ -33,7 +35,20 @@ import { HttpModule } from '@nestjs/axios';
     EmailService,
     PaymentProcessor,
     TermiiService,
+    OgaranyaService,
+    WalletService,
   ],
-  exports: [PaymentService, BullModule],
+  exports: [
+    PaymentService,
+    ConfigService,
+    OpenPayGoService,
+    PrismaService,
+    FlutterwaveService,
+    EmailService,
+    PaymentProcessor,
+    TermiiService,
+    OgaranyaService,
+    WalletService,
+  ],
 })
 export class PaymentModule {}

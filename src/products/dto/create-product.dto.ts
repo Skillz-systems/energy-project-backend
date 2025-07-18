@@ -2,10 +2,8 @@ import {
   IsString,
   IsOptional,
   IsNotEmpty,
-  ValidateIf,
   IsNumber,
   Min,
-  ValidateNested,
   IsArray,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -25,7 +23,7 @@ export class ProductInventoryDetailsDto {
   })
   @Transform(({ value }) => {
     // Handle both string and object cases
-    console.log({value})
+    console.log({ value });
     if (typeof value === 'object' && value.inventoryId) {
       return value.inventoryId;
     }
@@ -107,6 +105,7 @@ export class CreateProductDto {
       }
       return parsedValue;
     } catch (error) {
+      console.log({ error });
       throw new BadRequestException('Invalid format for inventories array');
     }
   })

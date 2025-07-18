@@ -6,6 +6,8 @@ model Product {
   currency     String? @default("NGN")
   paymentModes String?
 
+  assignedAgents AgentProduct[]
+
   creatorId      String? @db.ObjectId
   creatorDetails User?   @relation(fields: [creatorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 

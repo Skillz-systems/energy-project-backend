@@ -8,6 +8,7 @@ import {
   HttpCode,
   HttpStatus,
   Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AgentsService } from './agents.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
@@ -26,14 +27,41 @@ import {
 import { RolesAndPermissions } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { RolesAndPermissionsGuard } from '../auth/guards/roles.guard';
-import { ActionEnum, Agent, SubjectEnum } from '@prisma/client';
+import {
+  ActionEnum,
+  Agent,
+  AgentCategory,
+  SaleItem,
+  Sales,
+  SubjectEnum,
+} from '@prisma/client';
 import { GetAgentsDto } from './dto/get-agent.dto';
 import { GetSessionUser } from '../auth/decorators/getUser';
+import { AgentAccessGuard } from '../auth/guards/agent-access.guard';
+import { ProductsService } from '../products/products.service';
+import { GetAgentsProductsDto } from '../products/dto/get-products.dto';
+import { CustomersService } from '../customers/customers.service';
+import { ListAgentCustomersQueryDto } from 'src/customers/dto/list-customers.dto';
+import {
+  AssignAgentCustomersDto,
+  AssignAgentProductsDto,
+} from './dto/assign-agent.dto';
+import { ListAgentSalesQueryDto } from 'src/sales/dto/list-sales.dto';
+import { SalesService } from 'src/sales/sales.service';
+import { InstallerService } from 'src/installer/installer.service';
+import { CreateTaskDto } from 'src/task-management/dto/create-task.dto';
+import { CreateAgentSalesDto } from 'src/sales/dto/create-sales.dto';
 
 @ApiTags('Agents')
 @Controller('agents')
 export class AgentsController {
-  constructor(private readonly agentsService: AgentsService) {}
+  constructor(
+    private readonly agentsService: AgentsService,
+    private readonly productsService: ProductsService,
+    private readonly customersService: CustomersService,
+    private readonly salesService: SalesService,
+    private readonly installerService: InstallerService,
+  ) {}
 
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
   @RolesAndPermissions({
@@ -270,6 +298,352 @@ export class AgentsController {
     return agent;
   }
 
+  @UseGuards(JwtAuthGuard, AgentAccessGuard)
+  @ApiOperation({ description: 'Fetch agent products by agent' })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiExtraModels(GetAgentsProductsDto)
+  @Get('products')
+  async getAgentProducts(
+    @Query() getAgentsProductsDto: GetAgentsProductsDto,
+    @GetSessionUser('agent') agent: Agent,
+  ) {
+    return await this.productsService.getAllProducts(
+      getAgentsProductsDto,
+      agent.id,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, AgentAccessGuard)
+  @ApiOperation({ description: 'Fetch single product by agent' })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the product to fetch',
+  })
+  @Get('product/:id')
+  async getAgentProduct(
+    @Param('id') id: string,
+    @GetSessionUser('agent') agent: Agent,
+  ) {
+    return this.productsService.getProduct(id, agent.id);
+  }
+
+  @UseGuards(JwtAuthGuard, AgentAccessGuard)
+  @ApiOperation({ description: 'Fetch agent customers by agent' })
+  @Get('customers')
+  @ApiBearerAuth('access_token')
+  @ApiExtraModels(ListAgentCustomersQueryDto)
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  async getAgentCustomers(
+    @Query() query: ListAgentCustomersQueryDto,
+    @GetSessionUser('agent') agent: Agent,
+  ) {
+    return this.customersService.getCustomers(query, agent.id);
+  }
+
+  @UseGuards(JwtAuthGuard, AgentAccessGuard)
+  @ApiOperation({ description: 'Fetch single customer by agent' })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the customer to fetch',
+  })
+  @Get('customer/:id')
+  async getAgentCustomer(
+    @Param('id') id: string,
+    @GetSessionUser('agent') agent: Agent,
+  ) {
+    return this.customersService.getCustomer(id, agent.id);
+  }
+
+  @Post(':id/assign-products')
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Agents}`],
+  })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the agent to assign products to',
+  })
+  @ApiBody({
+    type: CreateAgentDto,
+    description: 'Json structure for request payload',
+  })
+  async assignProducts(
+    @Param('id') agentId: string,
+    @Body() body: AssignAgentProductsDto,
+    @GetSessionUser('id') adminId: string,
+  ) {
+    return this.agentsService.assignProductsToAgent(
+      agentId,
+      body.productIds,
+      adminId,
+    );
+  }
+
+  @Post(':id/unassign-products')
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Agents}`],
+  })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the agent to unassign products to',
+  })
+  @ApiBody({
+    type: CreateAgentDto,
+    description: 'Json structure for request payload',
+  })
+  async unassignProductsFromAgent(
+    @Param('id') agentId: string,
+    @Body() body: AssignAgentProductsDto,
+  ) {
+    return this.agentsService.unassignProductsFromAgent(
+      agentId,
+      body.productIds,
+    );
+  }
+
+  @Post(':id/assign-customers')
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Agents}`],
+  })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the agent to assign customers to',
+  })
+  @ApiBody({
+    type: CreateAgentDto,
+    description: 'Json structure for request payload',
+  })
+  async assignCustomers(
+    @Param('id') agentId: string,
+    @Body() body: AssignAgentCustomersDto,
+    @GetSessionUser('id') adminId: string,
+  ) {
+    return this.agentsService.assignCustomersToAgent(
+      agentId,
+      body.customerIds,
+      adminId,
+    );
+  }
+
+  @Post(':id/unassign-customers')
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Agents}`],
+  })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the agent to unassign customers to',
+  })
+  @ApiBody({
+    type: CreateAgentDto,
+    description: 'Json structure for request payload',
+  })
+  async unassignCustomersFromAgent(
+    @Param('id') agentId: string,
+    @Body() body: AssignAgentCustomersDto,
+  ) {
+    return this.agentsService.unassignCustomersFromAgent(
+      agentId,
+      body.customerIds,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, AgentAccessGuard)
+  @ApiOperation({ description: 'Fetch sales created by agent' })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiExtraModels(ListAgentSalesQueryDto)
+  @Get('sales')
+  async getAgentSales(
+    @GetSessionUser('agent') agent: any,
+    @Query() query: ListAgentSalesQueryDto,
+  ) {
+    return await this.salesService.getAllSales(query, agent.id);
+  }
+
+  @UseGuards(JwtAuthGuard, AgentAccessGuard)
+  @ApiOperation({ description: 'Fetch sale created by agent' })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Sale id to fetch details.',
+  })
+  @Get('sales:id')
+  async getSale(
+    @Param('id') saleId: string,
+    @GetSessionUser('agent') agent: any,
+  ) {
+    return await this.salesService.getSale(saleId, agent.id);
+  }
+
+  @UseGuards(JwtAuthGuard, AgentAccessGuard)
+  @ApiOperation({ description: 'Create installation task by agent for a sale' })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiParam({
+    name: 'saleId',
+    description: 'Sale id to create installation task for details.',
+  })
+  @Post('create-installer-task/:saleId')
+  async createInstallerTask(
+    @Param('saleId') saleId: string,
+    @Body() createTaskDto: CreateTaskDto,
+    @GetSessionUser('agent') agent: any,
+  ) {
+    const sale = (await this.salesService.getSale(saleId)) as SaleItem & {
+      sale: Sales;
+    };
+    const agentUserId = await this.agentsService.getAgentUserId(agent.id);
+
+    if (sale.sale.creatorId !== agentUserId) {
+      throw new ForbiddenException('You do not have access to this sale');
+    }
+
+    return this.installerService.createTask({
+      saleId,
+      customerId: createTaskDto.customerId || sale.sale.customerId,
+      requestingAgentId: agent.id,
+      ...createTaskDto,
+      scheduledDate: createTaskDto.scheduledDate,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, AgentAccessGuard)
+  @ApiOperation({ description: 'Create sale by agent' })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiBody({
+    type: CreateAgentSalesDto,
+    description: 'Json structure for request payload',
+  })
+  @Post('create-sale')
+  async createSale(
+    @Body() createSalesDto: CreateAgentSalesDto,
+    @GetSessionUser('agent') agent: Agent,
+  ) {
+    if (agent.category !== AgentCategory.NORMAL) {
+      throw new ForbiddenException('Only normal agents can create sales');
+    }
+
+    return await this.salesService.createSale(
+      agent.userId,
+      createSalesDto,
+      agent.id,
+    );
+  }
+
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
   @RolesAndPermissions({
     permissions: [`${ActionEnum.manage}:${SubjectEnum.Agents}`],
@@ -323,7 +697,7 @@ export class AgentsController {
   })
   @ApiParam({
     name: 'id',
-    description: 'Agent id to fetch tabs',
+    description: 'Agent id to fetch tabs by admin',
   })
   @ApiOkResponse({
     description: 'Fetch Agent statistics',
@@ -391,5 +765,45 @@ export class AgentsController {
   @Get(':id/tabs')
   async getInventoryTabs(@Param('id') agentId: string) {
     return this.agentsService.getAgentTabs(agentId);
+  }
+
+  @UseGuards(JwtAuthGuard, AgentAccessGuard)
+  @Get('overview')
+  @ApiOperation({ summary: 'Get agent dashboard overview' })
+  @ApiOkResponse({
+    description: 'Agent dashboard data',
+    schema: {
+      type: 'object',
+      properties: {
+        overview: {
+          type: 'object',
+          properties: {
+            totalSales: { type: 'number', example: 1960450.0 },
+            salesCount: { type: 'number', example: 34 },
+            totalCustomers: { type: 'number', example: 23 },
+            walletBalance: { type: 'number', example: 60500.0 },
+          },
+        },
+        salesStatistics: {
+          type: 'object',
+          properties: {
+            totalValue: { type: 'number' },
+            totalCount: { type: 'number' },
+            completedSales: { type: 'number' },
+            pendingSales: { type: 'number' },
+          },
+        },
+        walletInfo: {
+          type: 'object',
+          properties: {
+            balance: { type: 'number' },
+            recentTransactions: { type: 'array' },
+          },
+        },
+      },
+    },
+  })
+  async getDashboardOverview(@GetSessionUser('agent') agent: any) {
+    return this.agentsService.getAgentDashboardStats(agent.id);
   }
 }

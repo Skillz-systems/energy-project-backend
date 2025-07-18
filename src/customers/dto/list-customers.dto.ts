@@ -1,4 +1,4 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 import { UserStatus, CustomerType, IDType } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import {
@@ -110,6 +110,14 @@ export class ListCustomersQueryDto {
   status?: UserStatus;
 
   @ApiPropertyOptional({
+    description: 'Filter by agent ID',
+    example: 'agent-id-123',
+  })
+  @IsOptional()
+  @IsString()
+  agentId?: string;
+
+  @ApiPropertyOptional({
     description: 'Filter by customer type',
     enum: CustomerType,
     example: '',
@@ -203,3 +211,8 @@ export class ListCustomersQueryDto {
   @Transform(({ value }) => value === 'true' || value === '1')
   isNew?: boolean;
 }
+
+export class ListAgentCustomersQueryDto extends OmitType(
+  ListCustomersQueryDto,
+  ['agentId'],
+) {}

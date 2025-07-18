@@ -1,0 +1,69 @@
+model Wallet {
+    id String @id @default(auto()) @map("_id") @db.ObjectId
+
+    agentId String @unique @db.ObjectId
+    agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+    balance    Float     @default(0)
+    lastSyncAt DateTime?
+
+    transactions WalletTransaction[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("wallets")
+}
+
+model WalletTransaction {
+    id String @id @default(auto()) @map("_id") @db.ObjectId
+
+    walletId String @db.ObjectId
+    wallet   Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+    agentId String @db.ObjectId
+    agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+    type            WalletTransactionType
+    amount          Float
+    previousBalance Float
+    newBalance      Float
+
+    description String?
+    reference   String  @unique
+
+    errorMessage      String?
+
+    ogaranyaOrderId    String?
+    ogaranyaOrderRef   String?
+    ogaranyaSmsNumber  String?
+    ogaranyaSmsMessage String?
+
+    paymentId String?  @db.ObjectId
+    payment   Payment? @relation(fields: [paymentId], references: [id])
+
+    // For sales references
+    saleId String? @db.ObjectId
+    sale   Sales?  @relation(fields: [saleId], references: [id])
+
+    status WalletTransactionStatus @default(PENDING)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("wallet_transactions")
+}
+
+enum WalletTransactionType {
+    CREDIT // Top-up
+    DEBIT // Payment for sales
+    REFUND // Refund
+    COMMISSION // Commission earned
+}
+
+enum WalletTransactionStatus {
+    PENDING
+    COMPLETED
+    FAILED
+    CANCELLED
+}

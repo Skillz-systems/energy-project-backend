@@ -1,37 +1,36 @@
-import { IsString, IsEmail, IsBoolean, IsOptional } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsOptional, IsEnum, Length } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
+import { CreateUserDto } from 'src/auth/dto/create-user.dto';
+import { AgentCategory } from '@prisma/client';
 
-export class CreateAgentDto {
-  @ApiProperty({ example: 'John', description: 'First name of the agent' })
+export class CreateAgentDto extends OmitType(CreateUserDto, ['role']) {
+  @ApiPropertyOptional({
+    example: '1234 Street',
+    description: 'Longitude of the location of the agent',
+  })
   @IsString()
-  firstname: string;
-
-  @ApiProperty({ example: 'Doe', description: 'Last name of the agent' })
-  @IsString()
-  lastname: string;
-
-  @ApiProperty({ example: 'john.doe@example.com', description: 'Unique email of the agent' })
-  @IsEmail()
-  email: string;
-
-  @ApiProperty({ example: 'home', description: 'Type of address for the agent' })
-  @IsString()
-  addressType: string;
-
-  @ApiProperty({ example: '1234 Street', description: 'Address of the agent' })
-  @IsString()
-  location: string;
-
-  @ApiProperty({ example: '1234 Street', description: 'Longitude of the location of the  agent' })
-  @IsString()
-  longitude: string;
-
-  @ApiProperty({ example: '1234 Street', description: 'Latitude of the location of the  agent' })
-  @IsString()
-  latitude: string;
-
-  @ApiProperty({ example: true, description: 'Email verification status', default: false })
-  @IsBoolean()
   @IsOptional()
-  emailVerified?: boolean;
+  longitude?: string;
+
+  @ApiPropertyOptional({
+    example: '1234 Street',
+    description: 'Latitude of the location of the agent',
+  })
+  @IsString()
+  @IsOptional()
+  latitude?: string;
+
+  @ApiProperty({ description: 'agent category', enum: AgentCategory })
+  @IsEnum(AgentCategory)
+  category?: AgentCategory;
+
+  @ApiProperty({
+    description: "Customer's BVN (Bank Verification Number)",
+    example: 1234567890,
+  })
+  @Length(11, 11, {
+    message: 'bvn must be exactly 11 characters',
+  })
+  @IsString()
+  bvn: string;
 }

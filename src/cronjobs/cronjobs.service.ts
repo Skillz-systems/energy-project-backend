@@ -1,11 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { PaymentStatus, SalesStatus } from '@prisma/client';
+import { PaymentStatus, SalesStatus, WalletTransactionStatus } from '@prisma/client';
+import { PaymentService } from '../payment/payment.service';
 
 @Injectable()
 export class CronjobsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly paymentService: PaymentService,
+  ) {}
 
   private readonly logger = new Logger(CronjobsService.name);
 
@@ -56,6 +60,52 @@ export class CronjobsService {
       this.logger.log(
         `Inventory Restration for Sale ID: ${sale.id} successful`,
       );
+    }
+  }
+
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async pollPendingPayments() {
+    console.log('Polling pending payments...');
+
+    // Get pending payments from last 24 hours
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const pendingPayments = await this.prisma.payment.findMany({
+      where: {
+        paymentStatus: PaymentStatus.PENDING,
+        createdAt: { gte: oneDayAgo },
+        ogaranyaOrderRef: { not: null },
+      },
+      take: 50,
+    });
+
+    for (const payment of pendingPayments) {
+      try {
+        await this.paymentService.verifyOgaranyaPayment(
+          payment.ogaranyaOrderRef,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay between checks
+      } catch (error) {
+        console.error(`Failed to verify payment ${payment.id}:`, error);
+      }
+    }
+
+    // Also poll pending wallet top-ups
+    const pendingTopUps = await this.prisma.walletTransaction.findMany({
+      where: {
+        status: WalletTransactionStatus.PENDING,
+        createdAt: { gte: oneDayAgo },
+        ogaranyaOrderRef: { not: null },
+      },
+      take: 50,
+    });
+
+    for (const topUp of pendingTopUps) {
+      try {
+        await this.paymentService.verifyWalletTopUpManually(topUp.reference);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error(`Failed to verify top-up ${topUp.id}:`, error);
+      }
     }
   }
 }

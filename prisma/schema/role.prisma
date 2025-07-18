@@ -56,4 +56,5 @@ enum SubjectEnum {
   Contracts
   Support
   Communication
+  Assignments
 }

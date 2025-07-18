@@ -1,17 +1,69 @@
 model Agent {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  customers Customer[]
-  sales     Sales[]
+  sales Sales[]
 
-  agentId Int
+  agentId  Int
+  category AgentCategory @default(NORMAL)
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String @unique @db.ObjectId
+
+  installerTask InstallerTask[] @relation("InstallerTasks")
+  assignedTasks InstallerTask[] @relation("AssignedTasks")
+
+  assignedProducts   AgentProduct[]
+  assignedCustomers  AgentCustomer[]
+  walletTransactions WalletTransaction[]
+  supportTickets     SupportTicket[]
+  wallet             Wallet?
+
+  ogaranyaAccountNumber String?
+  ogaranyaPhone String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   @@map("agents")
+}
+
+model AgentProduct {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  agentId String @db.ObjectId
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  productId String  @db.ObjectId
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+  assignedBy String   @db.ObjectId
+  assigner   User     @relation("ProductAssigner", fields: [assignedBy], references: [id])
+
+  @@unique([agentId, productId])
+  @@map("agent_products")
+}
+
+model AgentCustomer {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  agentId String @db.ObjectId
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  customerId String   @db.ObjectId
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+  assignedBy String   @db.ObjectId
+  assigner   User     @relation("CustomerAssigner", fields: [assignedBy], references: [id])
+
+  @@unique([agentId, customerId])
+  @@map("agent_customers")
+}
+
+enum AgentCategory {
+  NORMAL
+  INSTALLER
+  BUSINESS
 }

@@ -192,6 +192,7 @@ export class AuthService {
             permissions: true,
           },
         },
+        agentDetails: true
       },
     });
 
@@ -337,7 +338,7 @@ export class AuthService {
 
     const hashedPwd = await hashPassword(pwds.password);
 
-    await this.prisma.user.update({
+    const user = await this.prisma.user.update({
       where: {
         id: tokenValid.userId,
       },
@@ -359,6 +360,7 @@ export class AuthService {
 
     return {
       message: MESSAGES.PWD_CREATION_SUCCESS,
+      user:  plainToInstance(UserEntity, user)
     };
   }
 
