@@ -13,8 +13,10 @@ import { GetSessionUser } from '../auth/decorators/getUser';
 import { AgentAccessGuard } from '../auth/guards/agent-access.guard';
 import { AgentCategory, TaskStatus } from '@prisma/client';
 import { InstallerService } from './installer.service';
+import { ApiTags } from '@nestjs/swagger';
 
 @Controller('installer')
+@ApiTags('Installer')
 @UseGuards(JwtAuthGuard, AgentAccessGuard)
 export class InstallerController {
   constructor(private readonly installerTaskService: InstallerService) {}
@@ -44,7 +46,7 @@ export class InstallerController {
     if (agent.category !== AgentCategory.INSTALLER) {
       throw new ForbiddenException('Access denied - Installer only');
     }
-    
+
     return this.installerTaskService.getInstallerTask(agent.id, taskId);
   }
 

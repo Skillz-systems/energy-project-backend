@@ -8,10 +8,11 @@ import { ActionEnum, AgentCategory, SaleItem, Sales, SubjectEnum } from '@prisma
 import { GetSessionUser } from 'src/auth/decorators/getUser';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { SalesService } from 'src/sales/sales.service';
-import { ApiOperation, ApiParam } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { TaskManagementService } from './task-management.service';
 
 @Controller('tasks')
+@ApiTags('Task Management')
 @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
 export class TaskManagementController {
   constructor(

@@ -4,10 +4,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { WalletService } from './wallet.service';
 import { PaymentService } from '../payment/payment.service';
 import { GetSessionUser } from '../auth/decorators/getUser';
-import { ApiBody, ApiOperation } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateAgentWalletDto } from './dto/create-agent-wallet.dto';
 
 @Controller('wallet')
+@ApiTags('Wallet')
 @UseGuards(JwtAuthGuard, AgentAccessGuard)
 export class WalletController {
   constructor(
