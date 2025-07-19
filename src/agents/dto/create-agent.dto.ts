@@ -23,14 +23,4 @@ export class CreateAgentDto extends OmitType(CreateUserDto, ['role']) {
   @ApiProperty({ description: 'agent category', enum: AgentCategory })
   @IsEnum(AgentCategory)
   category?: AgentCategory;
-
-  @ApiProperty({
-    description: "Customer's BVN (Bank Verification Number)",
-    example: 1234567890,
-  })
-  @Length(11, 11, {
-    message: 'bvn must be exactly 11 characters',
-  })
-  @IsString()
-  bvn: string;
 }
