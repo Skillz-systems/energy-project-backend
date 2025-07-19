@@ -19,7 +19,8 @@ export class AgentAccessGuard implements CanActivate {
       return false;
     }
 
-    request.agent = agent;
+    request.user.agent = agent;
+
     return true;
   }
 }

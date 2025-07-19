@@ -11,7 +11,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { GetSessionUser } from '../auth/decorators/getUser';
 import { AgentAccessGuard } from '../auth/guards/agent-access.guard';
-import { AgentCategory, TaskStatus } from '@prisma/client';
+import { Agent, AgentCategory, TaskStatus } from '@prisma/client';
 import { InstallerService } from './installer.service';
 import { ApiTags } from '@nestjs/swagger';
 
@@ -22,13 +22,13 @@ export class InstallerController {
   constructor(private readonly installerTaskService: InstallerService) {}
 
   @Get('dashboard')
-  async getDashboard(@GetSessionUser('agent') agent: any) {
+  async getDashboard(@GetSessionUser('agent') agent: Agent) {
     return await this.installerTaskService.getInstallerDashboard(agent.id);
   }
 
   @Get('tasks')
   async getTasks(
-    @GetSessionUser('agent') agent: any,
+    @GetSessionUser('agent') agent: Agent,
     @Query('status') status?: TaskStatus,
   ) {
     if (agent.category !== AgentCategory.INSTALLER) {
@@ -41,7 +41,7 @@ export class InstallerController {
   @Get('tasks/:id')
   async getTask(
     @Param('id') taskId: string,
-    @GetSessionUser('agent') agent: any,
+    @GetSessionUser('agent') agent: Agent,
   ) {
     if (agent.category !== AgentCategory.INSTALLER) {
       throw new ForbiddenException('Access denied - Installer only');
@@ -53,7 +53,7 @@ export class InstallerController {
   @Post('tasks/:id/accept')
   async acceptTask(
     @Param('id') taskId: string,
-    @GetSessionUser('agent') agent: any,
+    @GetSessionUser('agent') agent: Agent,
   ) {
     if (agent.category !== AgentCategory.INSTALLER) {
       throw new ForbiddenException('Access denied - Installer only');
@@ -66,7 +66,7 @@ export class InstallerController {
   async rejectTask(
     @Param('id') taskId: string,
     @Body() body: { reason?: string },
-    @GetSessionUser('agent') agent: any,
+    @GetSessionUser('agent') agent: Agent,
   ) {
     if (agent.category !== AgentCategory.INSTALLER) {
       throw new ForbiddenException('Access denied - Installer only');
@@ -78,7 +78,7 @@ export class InstallerController {
   @Post('tasks/:id/complete')
   async completeTask(
     @Param('id') taskId: string,
-    @GetSessionUser('agent') agent: any,
+    @GetSessionUser('agent') agent: Agent,
   ) {
     if (agent.category !== AgentCategory.INSTALLER) {
       throw new ForbiddenException('Access denied - Installer only');
@@ -88,7 +88,7 @@ export class InstallerController {
   }
 
   @Get('installation-history')
-  async getInstallationHistory(@GetSessionUser('agent') agent: any) {
+  async getInstallationHistory(@GetSessionUser('agent') agent: Agent) {
     if (agent.category !== AgentCategory.INSTALLER) {
       throw new ForbiddenException('Access denied - Installer only');
     }
@@ -97,7 +97,7 @@ export class InstallerController {
   }
 
   @Get('task-history')
-  async getTaskHistory(@GetSessionUser('agent') agent: any) {
+  async getTaskHistory(@GetSessionUser('agent') agent: Agent) {
     if (agent.category !== AgentCategory.INSTALLER) {
       throw new ForbiddenException('Access denied - Installer only');
     }
