@@ -31,9 +31,10 @@ model User {
   createdSales            Sales[]
   createdInventoryBatches InventoryBatch[]
 
-  assignedProducts  AgentProduct[]  @relation("ProductAssigner")
-  assignedCustomers AgentCustomer[] @relation("CustomerAssigner")
-  assignedTasks     InstallerTask[] @relation("TaskAssigner")
+  assignedProducts        AgentProduct[]             @relation("ProductAssigner")
+  assignedCustomers       AgentCustomer[]            @relation("CustomerAssigner")
+  assignedTasks           InstallerTask[]            @relation("TaskAssigner")
+  assignedAgentInstallers AgentInstallerAssignment[] @relation("AgentInstallerAssigner")
 
   recordedPayments Payment[] @relation("RecordedPayments")
 

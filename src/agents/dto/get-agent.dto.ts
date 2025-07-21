@@ -1,6 +1,6 @@
 import { IsOptional, IsString, IsDateString, IsEnum } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { UserStatus } from '@prisma/client';
+import { AgentCategory, UserStatus } from '@prisma/client';
 
 export class GetAgentsDto {
   @ApiPropertyOptional({
@@ -35,6 +35,11 @@ export class GetAgentsDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({ description: 'agent category', enum: AgentCategory })
+  @IsOptional()
+  @IsEnum(AgentCategory)
+  category?: AgentCategory;
 
   @ApiPropertyOptional({
     description: 'Field to sort by',

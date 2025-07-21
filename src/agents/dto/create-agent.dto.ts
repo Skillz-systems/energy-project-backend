@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, Length } from 'class-validator';
+import { IsString, IsOptional, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 import { CreateUserDto } from 'src/auth/dto/create-user.dto';
 import { AgentCategory } from '@prisma/client';

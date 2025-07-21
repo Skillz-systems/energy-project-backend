@@ -44,6 +44,7 @@ import { CustomersService } from '../customers/customers.service';
 import { ListAgentCustomersQueryDto } from 'src/customers/dto/list-customers.dto';
 import {
   AssignAgentCustomersDto,
+  AssignAgentInstallerssDto,
   AssignAgentProductsDto,
 } from './dto/assign-agent.dto';
 import { ListAgentSalesQueryDto } from 'src/sales/dto/list-sales.dto';
@@ -459,6 +460,74 @@ export class AgentsController {
     );
   }
 
+  @Post(':id/assign-agent-installer')
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Agents}`],
+  })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the agent to assign installers to',
+  })
+  @ApiBody({
+    type: CreateAgentDto,
+    description: 'Json structure for request payload',
+  })
+  async assignInstallersToAgent(
+    @Param('id') agentId: string,
+    @Body() body: AssignAgentInstallerssDto,
+    @GetSessionUser('id') adminId: string,
+  ) {
+    return this.agentsService.assignInstallersToAgent(
+      agentId,
+      body.installerIds,
+      adminId,
+    );
+  }
+
+  @Post(':id/unassign-agent-installer')
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Agents}`],
+  })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the agent to unassign installers to',
+  })
+  @ApiBody({
+    type: CreateAgentDto,
+    description: 'Json structure for request payload',
+  })
+  async unassignInstallerFromAgent(
+    @Param('id') agentId: string,
+    @Body() body: AssignAgentInstallerssDto,
+  ) {
+    return this.agentsService.unassignInstallerFromAgent(
+      agentId,
+      body.installerIds,
+    );
+  }
+
   @Post(':id/assign-customers')
   @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
   @RolesAndPermissions({
@@ -525,6 +594,42 @@ export class AgentsController {
       agentId,
       body.customerIds,
     );
+  }
+
+  @UseGuards(JwtAuthGuard, AgentAccessGuard)
+  @ApiOperation({ description: 'Fetch all installers for authenticated agent' })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiExtraModels(ListAgentSalesQueryDto)
+  @Get('installers')
+  async getAgentInstallers(@GetSessionUser('agent') agent: any) {
+    return await this.agentsService.getAgentInstallers(agent.id);
+  }
+
+  @UseGuards(JwtAuthGuard, AgentAccessGuard)
+  @ApiOperation({ description: 'Fetch all agents installers are assigned to' })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiExtraModels(ListAgentSalesQueryDto)
+  @Get('assignments')
+  async getAgentAssignments(@GetSessionUser('agent') agent: any) {
+    return await this.agentsService.getAgentAssignments(agent.id);
   }
 
   @UseGuards(JwtAuthGuard, AgentAccessGuard)

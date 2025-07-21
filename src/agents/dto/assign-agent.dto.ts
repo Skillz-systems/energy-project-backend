@@ -12,3 +12,9 @@ export class AssignAgentCustomersDto {
   @IsArray()
   customerIds: string[];
 }
+
+export class AssignAgentInstallerssDto {
+  @ApiProperty({ description: 'An array of customer IDs to assign to agent' })
+  @IsArray()
+  installerIds: string[];
+}

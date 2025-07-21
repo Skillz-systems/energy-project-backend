@@ -12,20 +12,36 @@ model Agent {
   installerTask InstallerTask[] @relation("InstallerTasks")
   assignedTasks InstallerTask[] @relation("AssignedTasks")
 
-  assignedProducts   AgentProduct[]
-  assignedCustomers  AgentCustomer[]
-  walletTransactions WalletTransaction[]
-  supportTickets     SupportTicket[]
-  wallet             Wallet?
+  assignedProducts AgentProduct[]
+
+  assignedCustomers   AgentCustomer[]
+  assignedInstallers  AgentInstallerAssignment[] @relation("AgentAssignments")
+  assignedAsInstaller AgentInstallerAssignment[] @relation("InstallerAssignments")
+  walletTransactions  WalletTransaction[]
+  supportTickets      SupportTicket[]
+  wallet              Wallet?
 
   ogaranyaAccountNumber String?
-  ogaranyaPhone String?
+  ogaranyaPhone         String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   @@map("agents")
+}
+
+model AgentInstallerAssignment {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  installerId String @db.ObjectId
+  installer   Agent  @relation("InstallerAssignments", fields: [installerId], references: [id], onDelete: Cascade)
+
+  agentId String @db.ObjectId
+  agent   Agent  @relation("AgentAssignments", fields: [agentId], references: [id], onDelete: Cascade)
+
+  assignedBy String @db.ObjectId
+  assigner   User   @relation("AgentInstallerAssigner", fields: [assignedBy], references: [id])
 }
 
 model AgentProduct {

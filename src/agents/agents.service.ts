@@ -159,6 +159,7 @@ export class AgentsService {
       search,
       createdAt,
       updatedAt,
+      category,
     } = getProductsDto;
 
     const whereConditions: Prisma.AgentWhereInput = {
@@ -176,6 +177,7 @@ export class AgentsService {
             }
           : {},
         status ? { user: { status } } : {},
+        category ? { category } : {},
         createdAt ? { createdAt: { gte: new Date(createdAt) } } : {},
         updatedAt ? { updatedAt: { gte: new Date(updatedAt) } } : {},
       ],
@@ -332,6 +334,128 @@ export class AgentsService {
     ];
 
     return tabs;
+  }
+
+  async assignInstallersToAgent(
+    agentId: string,
+    installerIds: string[],
+    assignedBy: string,
+  ) {
+    await this.findOne(agentId);
+
+    const products = await this.prisma.agent.findMany({
+      where: { id: { in: installerIds } },
+    });
+
+    if (products.length !== installerIds.length) {
+      throw new BadRequestException('Some agents not found');
+    }
+
+    const alreadyAssigned = await this.prisma.agentInstallerAssignment.findMany(
+      {
+        where: {
+          agentId,
+          installerId: { in: installerIds },
+        },
+      },
+    );
+
+    if (alreadyAssigned.length > 0) {
+      const assignedIds = alreadyAssigned.map((p) => p.installerId).join(', ');
+      throw new BadRequestException(
+        `Agent has already been assigned the following installer(s): ${assignedIds}`,
+      );
+    }
+
+    await this.prisma.agentInstallerAssignment.createMany({
+      data: installerIds.map((installerId) => ({
+        agentId,
+        installerId,
+        assignedBy,
+      })),
+    });
+
+    return { message: 'Agents assigned successfully' };
+  }
+
+  async unassignInstallerFromAgent(agentId: string, installerIds: string[]) {
+    await this.findOne(agentId);
+
+    const assigned = await this.prisma.agentInstallerAssignment.findMany({
+      where: {
+        agentId,
+        installerId: { in: installerIds },
+      },
+    });
+
+    if (assigned.length === 0) {
+      throw new BadRequestException(
+        'No matching installer-agent assignments found',
+      );
+    }
+
+    await this.prisma.agentInstallerAssignment.deleteMany({
+      where: {
+        agentId,
+        installerId: { in: installerIds },
+      },
+    });
+
+    return { message: 'Products unassigned successfully' };
+  }
+
+  async getAgentInstallers(agentId: string) {
+    const agent = await this.findOne(agentId);
+
+    if (!agent || agent.category !== AgentCategory.NORMAL) {
+      throw new BadRequestException('User is not an agent');
+    }
+
+    return await this.prisma.agentInstallerAssignment.findMany({
+      where: { agentId },
+      select: {
+        installer: {
+          select: {
+            id: true,
+            user: {
+              select: {
+                firstname: true,
+                lastname: true,
+                email: true,
+                phone: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async getAgentAssignments(agentId: string) {
+    const agent = await this.findOne(agentId);
+
+    if (!agent || agent.category !== AgentCategory.INSTALLER) {
+      throw new BadRequestException('User is not an installer');
+    }
+
+    return await this.prisma.agentInstallerAssignment.findMany({
+      where: { installerId: agentId },
+      select: {
+        agent: {
+          select: {
+            id: true,
+            user: {
+              select: {
+                firstname: true,
+                lastname: true,
+                email: true,
+                phone: true,
+              },
+            },
+          },
+        },
+      },
+    });
   }
 
   async assignProductsToAgent(
