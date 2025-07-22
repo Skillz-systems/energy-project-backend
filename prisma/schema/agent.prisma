@@ -4,7 +4,7 @@ model Agent {
   sales Sales[]
 
   agentId  Int
-  category AgentCategory @default(NORMAL)
+  category AgentCategory @default(SALES)
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String @unique @db.ObjectId
@@ -79,7 +79,7 @@ model AgentCustomer {
 }
 
 enum AgentCategory {
-  NORMAL
+  SALES
   INSTALLER
   BUSINESS
 }

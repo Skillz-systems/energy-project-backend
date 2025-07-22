@@ -738,7 +738,7 @@ export class AgentsController {
     @Body() createSalesDto: CreateAgentSalesDto,
     @GetSessionUser('agent') agent: Agent,
   ) {
-    if (agent.category !== AgentCategory.NORMAL) {
+    if (agent.category !== AgentCategory.SALES) {
       throw new ForbiddenException('Only normal agents can create sales');
     }
 

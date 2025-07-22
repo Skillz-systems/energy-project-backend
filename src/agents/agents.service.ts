@@ -407,7 +407,7 @@ export class AgentsService {
   async getAgentInstallers(agentId: string) {
     const agent = await this.findOne(agentId);
 
-    if (!agent || agent.category !== AgentCategory.NORMAL) {
+    if (!agent || agent.category !== AgentCategory.SALES) {
       throw new BadRequestException('User is not an agent');
     }
 
@@ -618,7 +618,7 @@ export class AgentsService {
       include: { user: true, wallet: true },
     });
 
-    if (!agent || agent.category !== AgentCategory.NORMAL) {
+    if (!agent || agent.category !== AgentCategory.SALES) {
       throw new BadRequestException('Invalid agent or category');
     }
 
