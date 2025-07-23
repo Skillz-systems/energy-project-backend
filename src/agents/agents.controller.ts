@@ -669,7 +669,7 @@ export class AgentsController {
     name: 'id',
     description: 'Sale id to fetch details.',
   })
-  @Get('sales:id')
+  @Get('sales/:id')
   async getSale(
     @Param('id') saleId: string,
     @GetSessionUser('agent') agent: any,
