@@ -214,7 +214,7 @@ export class CustomersService {
     const take = limitNumber;
 
     const orderBy = {
-      [sortField || 'createdAt']: sortOrder || 'asc',
+      [sortField || 'createdAt']: sortOrder || 'desc',
     };
 
     const result = await this.prisma.customer.findMany({
