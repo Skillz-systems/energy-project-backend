@@ -210,95 +210,6 @@ export class AgentsController {
     return this.agentsService.getAll(GetAgentsDto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
-  @RolesAndPermissions({
-    permissions: [`${ActionEnum.manage}:${SubjectEnum.Agents}`],
-  })
-  @ApiBearerAuth('access_token')
-  @ApiHeader({
-    name: 'Authorization',
-    description: 'JWT token used for authentication',
-    required: true,
-    schema: {
-      type: 'string',
-      example: 'Bearer <token>',
-    },
-  })
-  @ApiParam({
-    name: 'id',
-    description: 'ID of the agent to fetch',
-  })
-  @ApiOkResponse({
-    description: 'Details of an agent',
-    schema: {
-      type: 'object',
-
-      properties: {
-        id: { type: 'string', example: '6742722249c6bcb5fb8b296f' },
-        agentId: { type: 'number', example: 94350766 },
-        userId: { type: 'string', example: '6742722249c6bcb5fb8b296e' },
-        createdAt: {
-          type: 'string',
-          format: 'date-time',
-          example: '2024-11-24T00:24:02.180Z',
-        },
-        updatedAt: {
-          type: 'string',
-          format: 'date-time',
-          example: '2024-11-24T00:24:02.180Z',
-        },
-        deletedAt: { type: 'string', nullable: true, example: null },
-        user: {
-          type: 'object',
-          properties: {
-            id: { type: 'string', example: '6742722249c6bcb5fb8b296e' },
-            firstname: { type: 'string', example: 'daniel' },
-            lastname: { type: 'string', example: 'paul' },
-            username: { type: 'string', nullable: true, example: null },
-            password: { type: 'string', example: '$argon2id$...' },
-            email: { type: 'string', example: 'john.doe12@example.com' },
-            phone: { type: 'string', nullable: true, example: null },
-            location: { type: 'string', example: '1234 Street' },
-            addressType: { type: 'string', example: 'HOME' },
-            staffId: { type: 'string', nullable: true, example: null },
-            longitude: { type: 'string', nullable: true, example: null },
-            latitude: { type: 'string', nullable: true, example: null },
-            emailVerified: { type: 'boolean', example: true },
-            isBlocked: { type: 'boolean', example: false },
-            status: { type: 'string', example: 'barred' },
-            roleId: { type: 'string', example: '670189eb3253ce51203d2c03' },
-            createdAt: {
-              type: 'string',
-              format: 'date-time',
-              example: '2024-11-24T00:24:02.162Z',
-            },
-            updatedAt: {
-              type: 'string',
-              format: 'date-time',
-              example: '2024-11-24T00:24:02.162Z',
-            },
-            deletedAt: { type: 'string', nullable: true, example: null },
-            lastLogin: { type: 'string', nullable: true, example: null },
-          },
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Agent not found.',
-  })
-  @Get(':id')
-  @ApiOperation({
-    summary: 'Fetch agent details',
-    description: 'This endpoint allows a permitted user fetch a agent details.',
-  })
-  async getAgent(@Param('id') id: string): Promise<Agent> {
-    const agent = await this.agentsService.findOne(id);
-
-    return agent;
-  }
-
   @UseGuards(JwtAuthGuard, AgentAccessGuard)
   @ApiOperation({ description: 'Fetch agent products by agent' })
   @ApiBearerAuth('access_token')
@@ -910,5 +821,94 @@ export class AgentsController {
   })
   async getDashboardOverview(@GetSessionUser('agent') agent: any) {
     return this.agentsService.getAgentDashboardStats(agent.id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesAndPermissionsGuard)
+  @RolesAndPermissions({
+    permissions: [`${ActionEnum.manage}:${SubjectEnum.Agents}`],
+  })
+  @ApiBearerAuth('access_token')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT token used for authentication',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer <token>',
+    },
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the agent to fetch',
+  })
+  @ApiOkResponse({
+    description: 'Details of an agent',
+    schema: {
+      type: 'object',
+
+      properties: {
+        id: { type: 'string', example: '6742722249c6bcb5fb8b296f' },
+        agentId: { type: 'number', example: 94350766 },
+        userId: { type: 'string', example: '6742722249c6bcb5fb8b296e' },
+        createdAt: {
+          type: 'string',
+          format: 'date-time',
+          example: '2024-11-24T00:24:02.180Z',
+        },
+        updatedAt: {
+          type: 'string',
+          format: 'date-time',
+          example: '2024-11-24T00:24:02.180Z',
+        },
+        deletedAt: { type: 'string', nullable: true, example: null },
+        user: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', example: '6742722249c6bcb5fb8b296e' },
+            firstname: { type: 'string', example: 'daniel' },
+            lastname: { type: 'string', example: 'paul' },
+            username: { type: 'string', nullable: true, example: null },
+            password: { type: 'string', example: '$argon2id$...' },
+            email: { type: 'string', example: 'john.doe12@example.com' },
+            phone: { type: 'string', nullable: true, example: null },
+            location: { type: 'string', example: '1234 Street' },
+            addressType: { type: 'string', example: 'HOME' },
+            staffId: { type: 'string', nullable: true, example: null },
+            longitude: { type: 'string', nullable: true, example: null },
+            latitude: { type: 'string', nullable: true, example: null },
+            emailVerified: { type: 'boolean', example: true },
+            isBlocked: { type: 'boolean', example: false },
+            status: { type: 'string', example: 'barred' },
+            roleId: { type: 'string', example: '670189eb3253ce51203d2c03' },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+              example: '2024-11-24T00:24:02.162Z',
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time',
+              example: '2024-11-24T00:24:02.162Z',
+            },
+            deletedAt: { type: 'string', nullable: true, example: null },
+            lastLogin: { type: 'string', nullable: true, example: null },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Agent not found.',
+  })
+  @ApiOperation({
+    summary: 'Fetch agent details',
+    description: 'This endpoint allows a permitted user fetch a agent details.',
+  })
+  @Get(':id')
+  async getAgent(@Param('id') id: string): Promise<Agent> {
+    const agent = await this.agentsService.findOne(id);
+
+    return agent;
   }
 }
